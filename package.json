@@ -1,0 +1,14 @@
+{
+  "name": "ramanstore",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "npm-run-all -p dev:api dev:store dev:admin",
+    "dev:api": "npm --workspace apps/api run dev",
+    "dev:store": "npm --workspace apps/storefront run dev",
+    "dev:admin": "npm --workspace apps/admin run dev"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5"
+  }
+}
