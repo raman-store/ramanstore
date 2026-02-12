@@ -1,30 +1,22 @@
+// apps/api/src/index.js
 import express from "express";
 import cors from "cors";
 
 const app = express();
-const PORT = process.env.PORT || 5000;
-
 app.use(express.json());
 
-/* ---------------- CORS ---------------- */
+// ✅ CORS (abhi easy mode: allow all)
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173", // admin local
-      "http://localhost:3000", // frontend local
-      "https://ramanstore-frontend.vercel.app" // frontend live
-    ],
-    credentials: true,
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-/* ---------------- Health ---------------- */
-app.get("/health", (req, res) => {
-  res.json({ ok: true });
-});
-
-/* ---------------- Temporary DB ---------------- */
-let PRODUCTS = [
+// ✅ In-memory products (abhi DB nahi hai, isliye memory)
+// (later Mongo/Postgres me shift kar denge)
+let products = [
   {
     id: 1,
     slug: "emerald-glow-earrings",
@@ -41,75 +33,99 @@ let PRODUCTS = [
     category: "necklaces",
     image: "https://picsum.photos/seed/necklace1/600/600",
   },
+  {
+    id: 3,
+    slug: "classic-ring",
+    title: "Classic Ring",
+    price: 199,
+    category: "rings",
+    image: "https://picsum.photos/seed/ring1/600/600",
+  },
+  {
+    id: 4,
+    slug: "bridal-sets-royal",
+    title: "Royal Bridal Set",
+    price: 999,
+    category: "bridal-sets",
+    image: "https://picsum.photos/seed/bridal1/600/600",
+  },
+  {
+    id: 5,
+    slug: "daily-wear-studs",
+    title: "Daily Wear Studs",
+    price: 149,
+    category: "daily-wear",
+    image: "https://picsum.photos/seed/daily1/600/600",
+  },
 ];
 
-/* ---------------- GET Products ---------------- */
-app.get("/products", (req, res) => {
-  res.json({
-    items: PRODUCTS,
-    total: PRODUCTS.length,
-  });
+// ✅ helpers
+const toSlug = (s = "") =>
+  s
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+
+// ✅ health
+app.get("/health", (req, res) => res.json({ ok: true }));
+
+// ✅ storefront endpoint (already your frontend calls this)
+app.get("/shop", (req, res) => {
+  const { category } = req.query;
+  const items = category
+    ? products.filter((p) => p.category === category)
+    : products;
+
+  res.json({ items, total: items.length });
 });
 
-/* ---------------- ADD Product ---------------- */
-app.post("/products", (req, res) => {
-  const { title, price, category, image } = req.body;
+// ✅ ADMIN APIs
+app.get("/admin/products", (req, res) => {
+  res.json({ items: products, total: products.length });
+});
+
+app.post("/admin/products", (req, res) => {
+  const { title, price, category, image, slug } = req.body || {};
 
   if (!title || !price || !category) {
-    return res.status(400).json({
-      error: "title, price, category required",
-    });
+    return res
+      .status(400)
+      .json({ ok: false, message: "title, price, category required" });
   }
 
-  const id = Date.now();
-
-  const slug = title
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "");
-
-  const newProduct = {
-    id,
-    slug,
-    title,
+  const newItem = {
+    id: Date.now(),
+    title: String(title),
     price: Number(price),
-    category,
-    image: image || "",
+    category: String(category),
+    image: image ? String(image) : "https://picsum.photos/seed/new/600/600",
+    slug: slug ? String(slug) : toSlug(title),
   };
 
-  PRODUCTS.unshift(newProduct);
-
-  res.status(201).json(newProduct);
+  products = [newItem, ...products];
+  res.status(201).json({ ok: true, item: newItem });
 });
 
-/* ---------------- UPDATE Product ---------------- */
-app.put("/products/:id", (req, res) => {
+app.put("/admin/products/:id", (req, res) => {
   const id = Number(req.params.id);
+  const idx = products.findIndex((p) => p.id === id);
+  if (idx === -1) return res.status(404).json({ ok: false, message: "Not found" });
 
-  const index = PRODUCTS.findIndex((p) => p.id === id);
-
-  if (index === -1) {
-    return res.status(404).json({ error: "Product not found" });
-  }
-
-  PRODUCTS[index] = {
-    ...PRODUCTS[index],
-    ...req.body,
-  };
-
-  res.json(PRODUCTS[index]);
+  products[idx] = { ...products[idx], ...req.body };
+  res.json({ ok: true, item: products[idx] });
 });
 
-/* ---------------- DELETE Product ---------------- */
-app.delete("/products/:id", (req, res) => {
+app.delete("/admin/products/:id", (req, res) => {
   const id = Number(req.params.id);
-
-  PRODUCTS = PRODUCTS.filter((p) => p.id !== id);
-
-  res.json({ ok: true });
+  const before = products.length;
+  products = products.filter((p) => p.id !== id);
+  res.json({ ok: true, deleted: before - products.length });
 });
 
-/* ---------------- Server Start ---------------- */
-app.listen(PORT, () => {
-  console.log(`API running on port ${PORT}`);
-});
+// ✅ root (optional) - to avoid "Cannot GET /"
+app.get("/", (req, res) => res.send("RamanStore API is running"));
+
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log("API running on", PORT));
