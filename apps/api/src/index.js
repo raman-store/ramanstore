@@ -2,122 +2,114 @@ import express from "express";
 import cors from "cors";
 
 const app = express();
-app.use(cors());
+const PORT = process.env.PORT || 5000;
+
 app.use(express.json());
 
-const categories = [
-  { id: "c1", name: "Earrings", slug: "earrings" },
-  { id: "c2", name: "Necklaces", slug: "necklaces" },
-  { id: "c3", name: "Rings", slug: "rings" },
-  { id: "c4", name: "Bridal Sets", slug: "bridal-sets" },
-  { id: "c5", name: "Daily Wear", slug: "daily-wear" }
-];
+/* ---------------- CORS ---------------- */
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173", // admin local
+      "http://localhost:3000", // frontend local
+      "https://ramanstore-frontend.vercel.app" // frontend live
+    ],
+    credentials: true,
+  })
+);
 
-const products = [
+/* ---------------- Health ---------------- */
+app.get("/health", (req, res) => {
+  res.json({ ok: true });
+});
+
+/* ---------------- Temporary DB ---------------- */
+let PRODUCTS = [
   {
-    id: "p1",
-    title: "Emerald Glow Earrings",
+    id: 1,
     slug: "emerald-glow-earrings",
-    price: 399,
-    mrp: 599,
-    categorySlug: "earrings",
-    isFeatured: true,
-    type: "STOCK",
-    stockQty: 24,
-    images: [
-      "https://picsum.photos/seed/raman1/900/900",
-      "https://picsum.photos/seed/raman2/900/900"
-    ]
+    title: "Emerald Glow Earrings",
+    price: 299,
+    category: "earrings",
+    image: "https://picsum.photos/seed/earrings1/600/600",
   },
   {
-    id: "p2",
-    title: "Champagne Pearl Necklace",
+    id: 2,
     slug: "champagne-pearl-necklace",
-    price: 799,
-    mrp: 1099,
-    categorySlug: "necklaces",
-    isFeatured: true,
-    type: "BOTH",
-    stockQty: 8,
-    leadTimeDays: 5,
-    images: [
-      "https://picsum.photos/seed/raman3/900/900",
-      "https://picsum.photos/seed/raman4/900/900"
-    ]
-  }
+    title: "Champagne Pearl Necklace",
+    price: 499,
+    category: "necklaces",
+    image: "https://picsum.photos/seed/necklace1/600/600",
+  },
 ];
 
-app.get("/health", (_, res) => res.json({ ok: true }));
-// TEMP demo products (later DB se aayenge)
-const PRODUCTS = [
-  { id: 1, slug: "emerald-glow-earrings", title: "Emerald Glow Earrings", price: 299, category: "earrings", image: "https://picsum.photos/seed/earrings1/600/600" },
-  { id: 2, slug: "champagne-pearl-necklace", title: "Champagne Pearl Necklace", price: 499, category: "necklaces", image: "https://picsum.photos/seed/necklace1/600/600" },
-  { id: 3, slug: "classic-ring", title: "Classic Ring", price: 199, category: "rings", image: "https://picsum.photos/seed/ring1/600/600" },
-  { id: 4, slug: "bridal-sets-royal", title: "Royal Bridal Set", price: 999, category: "bridal-sets", image: "https://picsum.photos/seed/bridal1/600/600" },
-  { id: 5, slug: "daily-wear-studs", title: "Daily Wear Studs", price: 149, category: "daily-wear", image: "https://picsum.photos/seed/daily1/600/600" },
-];
-
-// ✅ GET /shop?category=earrings
-app.get("/shop", (req, res) => {
-  const { category } = req.query;
-  const items = category
-    ? PRODUCTS.filter(p => p.category === String(category).toLowerCase())
-    : PRODUCTS;
-
-  res.json({ items, total: items.length });
-});
-
-app.get("/categories", (_, res) => res.json(categories));
-
+/* ---------------- GET Products ---------------- */
 app.get("/products", (req, res) => {
-  const { category, q } = req.query;
-  let out = [...products];
-  if (category) out = out.filter(p => p.categorySlug === category);
-  if (q) out = out.filter(p => p.title.toLowerCase().includes(String(q).toLowerCase()));
-  res.json(out);
+  res.json({
+    items: PRODUCTS,
+    total: PRODUCTS.length,
+  });
 });
 
-app.get("/products/:slug", (req, res) => {
-  const p = products.find(x => x.slug === req.params.slug);
-  if (!p) return res.status(404).json({ message: "Not found" });
-  res.json(p);
-});
+/* ---------------- ADD Product ---------------- */
+app.post("/products", (req, res) => {
+  const { title, price, category, image } = req.body;
 
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`));
-// --- Admin create product (temporary in-memory) ---
-app.post("/admin/products", (req, res) => {
-  const body = req.body || {};
-  if (!body.title || !body.slug || !body.price) {
-    return res.status(400).json({ message: "title, slug, price required" });
+  if (!title || !price || !category) {
+    return res.status(400).json({
+      error: "title, price, category required",
+    });
   }
 
-  const exists = products.find(p => p.slug === body.slug);
-  if (exists) return res.status(409).json({ message: "Slug already exists" });
+  const id = Date.now();
 
-  const newP = {
-    id: `p${products.length + 1}`,
-    title: body.title,
-    slug: body.slug,
-    price: Number(body.price),
-    mrp: body.mrp ? Number(body.mrp) : undefined,
-    categorySlug: body.categorySlug || "earrings",
-    isFeatured: !!body.isFeatured,
-    type: body.type || "STOCK",            // STOCK / MADE_TO_ORDER / BOTH
-    stockQty: body.stockQty ?? 0,
-    leadTimeDays: body.leadTimeDays ?? null,
-    images: body.images?.length ? body.images : ["https://picsum.photos/seed/new1/900/900"]
+  const slug = title
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
+
+  const newProduct = {
+    id,
+    slug,
+    title,
+    price: Number(price),
+    category,
+    image: image || "",
   };
 
-  products.unshift(newP);
-  res.json(newP);
+  PRODUCTS.unshift(newProduct);
+
+  res.status(201).json(newProduct);
 });
 
-// --- Admin list products ---
-app.get("/admin/products", (_, res) => res.json(products));
+/* ---------------- UPDATE Product ---------------- */
+app.put("/products/:id", (req, res) => {
+  const id = Number(req.params.id);
 
-// --- Simple uniqueness check for slug (optional) ---
-app.get("/admin/check-slug/:slug", (req, res) => {
-  const exists = products.some(p => p.slug === req.params.slug);
-  res.json({ exists });
+  const index = PRODUCTS.findIndex((p) => p.id === id);
+
+  if (index === -1) {
+    return res.status(404).json({ error: "Product not found" });
+  }
+
+  PRODUCTS[index] = {
+    ...PRODUCTS[index],
+    ...req.body,
+  };
+
+  res.json(PRODUCTS[index]);
+});
+
+/* ---------------- DELETE Product ---------------- */
+app.delete("/products/:id", (req, res) => {
+  const id = Number(req.params.id);
+
+  PRODUCTS = PRODUCTS.filter((p) => p.id !== id);
+
+  res.json({ ok: true });
+});
+
+/* ---------------- Server Start ---------------- */
+app.listen(PORT, () => {
+  console.log(`API running on port ${PORT}`);
 });
