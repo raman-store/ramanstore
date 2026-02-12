@@ -1,131 +1,218 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-export function AddProduct() {
-  const API = import.meta.env.VITE_API_BASE as string;
+function getApiBase() {
+  const viteBase = (import.meta as any)?.env?.VITE_API_BASE as string | undefined;
+  const nextBase = (import.meta as any)?.env?.NEXT_PUBLIC_API_BASE as string | undefined;
+
+  return (viteBase || nextBase || "http://localhost:4000").replace(/\/$/, "");
+}
+
+export default function AddProduct() {
+  const API_BASE = useMemo(() => getApiBase(), []);
+  const nav = useNavigate();
 
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
-  const [price, setPrice] = useState<number>(0);
-  const [mrp, setMrp] = useState<number>(0);
-  const [categorySlug, setCategorySlug] = useState("earrings");
-  const [type, setType] = useState<"STOCK"|"MADE_TO_ORDER"|"BOTH">("STOCK");
-  const [stockQty, setStockQty] = useState<number>(0);
-  const [leadTimeDays, setLeadTimeDays] = useState<number>(5);
-  const [isFeatured, setIsFeatured] = useState(false);
+  const [category, setCategory] = useState("earrings");
+  const [price, setPrice] = useState<number>(299);
+  const [image, setImage] = useState("https://picsum.photos/seed/earrings1/600/600");
 
-  const canSave = useMemo(() => title.trim() && slug.trim() && price > 0, [title, slug, price]);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string>("");
 
-  async function onSave() {
-    if (!canSave) return;
+  function autoSlug(v: string) {
+    return v
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-");
+  }
 
-    const payload: any = {
-      title: title.trim(),
-      slug: slug.trim(),
-      price,
-      mrp: mrp > 0 ? mrp : undefined,
-      categorySlug,
-      type,
-      stockQty: type === "MADE_TO_ORDER" ? null : stockQty,
-      leadTimeDays: type === "STOCK" ? null : leadTimeDays,
-      isFeatured,
-      images: [] // later
-    };
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setMsg("");
 
-    const r = await fetch(`${API}/admin/products`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+    try {
+      const payload = {
+        title: title.trim(),
+        slug: (slug.trim() || autoSlug(title)).trim(),
+        category: category.trim(),
+        price: Number(price),
+        image: image.trim(),
+      };
 
-    if (!r.ok) {
-      const err = await r.json().catch(() => ({}));
-      alert(err.message || "Failed to save");
-      return;
+      if (!payload.title) throw new Error("Title required");
+      if (!payload.slug) throw new Error("Slug required");
+      if (!payload.category) throw new Error("Category required");
+      if (!Number.isFinite(payload.price)) throw new Error("Price invalid");
+
+      const res = await fetch(`${API_BASE}/admin/products`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Create failed ${res.status}: ${text || res.statusText}`);
+      }
+
+      setMsg("✅ Product added successfully!");
+      // go back to list after short moment
+      setTimeout(() => nav("/products"), 600);
+    } catch (e: any) {
+      setMsg(`❌ ${e?.message || "Failed"}`);
+    } finally {
+      setSaving(false);
     }
-
-    alert("Product saved ✅");
-    // Optionally redirect later
-    setTitle(""); setSlug(""); setPrice(0); setMrp(0);
   }
 
   return (
-    <div className="card" style={{ padding: 16, maxWidth: 760 }}>
-      <div style={{ fontWeight: 1000, fontSize: 18 }}>Add Product</div>
-      <div style={{ fontSize: 13, opacity: 0.75 }}>This will save to API (temporary in-memory).</div>
-
-      <div style={{ height: 12 }} />
-
-      <div style={{ display: "grid", gap: 10 }}>
-        <label>
-          <div style={{ fontWeight: 900, marginBottom: 6 }}>Title</div>
-          <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Product name" />
-        </label>
-
-        <label>
-          <div style={{ fontWeight: 900, marginBottom: 6 }}>Slug</div>
-          <input className="input" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="emerald-glow-earrings" />
-        </label>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <label>
-            <div style={{ fontWeight: 900, marginBottom: 6 }}>Price</div>
-            <input className="input" type="number" value={price} onChange={(e) => setPrice(Number(e.target.value))} />
-          </label>
-
-          <label>
-            <div style={{ fontWeight: 900, marginBottom: 6 }}>MRP (optional)</div>
-            <input className="input" type="number" value={mrp} onChange={(e) => setMrp(Number(e.target.value))} />
-          </label>
+    <div style={{ padding: 16, maxWidth: 720 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <div>
+          <h2 style={{ margin: 0 }}>Add Product</h2>
+          <div style={{ fontSize: 13, opacity: 0.75 }}>API: {API_BASE}</div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <label>
-            <div style={{ fontWeight: 900, marginBottom: 6 }}>Category</div>
-            <select className="input" value={categorySlug} onChange={(e) => setCategorySlug(e.target.value)}>
-              <option value="earrings">Earrings</option>
-              <option value="necklaces">Necklaces</option>
-              <option value="rings">Rings</option>
-              <option value="bridal-sets">Bridal Sets</option>
-              <option value="daily-wear">Daily Wear</option>
-            </select>
-          </label>
-
-          <label>
-            <div style={{ fontWeight: 900, marginBottom: 6 }}>Type</div>
-            <select className="input" value={type} onChange={(e) => setType(e.target.value as any)}>
-              <option value="STOCK">Stock</option>
-              <option value="MADE_TO_ORDER">Made to Order</option>
-              <option value="BOTH">Both</option>
-            </select>
-          </label>
-        </div>
-
-        {type !== "MADE_TO_ORDER" && (
-          <label>
-            <div style={{ fontWeight: 900, marginBottom: 6 }}>Stock Qty</div>
-            <input className="input" type="number" value={stockQty} onChange={(e) => setStockQty(Number(e.target.value))} />
-          </label>
-        )}
-
-        {type !== "STOCK" && (
-          <label>
-            <div style={{ fontWeight: 900, marginBottom: 6 }}>Lead Time (days)</div>
-            <input className="input" type="number" value={leadTimeDays} onChange={(e) => setLeadTimeDays(Number(e.target.value))} />
-          </label>
-        )}
-
-        <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <input type="checkbox" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} />
-          <div style={{ fontWeight: 900 }}>Featured product</div>
-        </label>
-
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 8 }}>
-          <button className={`btn ${canSave ? "btnPrimary" : ""}`} type="button" onClick={onSave} disabled={!canSave}>
-            Save Product
-          </button>
-          <button className="btn" type="button" onClick={() => history.back()}>Back</button>
-        </div>
+        <button onClick={() => nav("/products")} style={btn()}>
+          ← Back
+        </button>
       </div>
+
+      <form onSubmit={submit} style={card()}>
+        <label style={label()}>
+          Title
+          <input
+            value={title}
+            onChange={(e) => {
+              const v = e.target.value;
+              setTitle(v);
+              // auto-fill slug only if user hasn't typed slug yet
+              if (!slug) setSlug(autoSlug(v));
+            }}
+            placeholder="Emerald Glow Earrings"
+            style={input()}
+          />
+        </label>
+
+        <label style={label()}>
+          Slug
+          <input
+            value={slug}
+            onChange={(e) => setSlug(autoSlug(e.target.value))}
+            placeholder="emerald-glow-earrings"
+            style={input()}
+          />
+        </label>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <label style={label()}>
+            Category
+            <select value={category} onChange={(e) => setCategory(e.target.value)} style={input()}>
+              <option value="earrings">earrings</option>
+              <option value="necklaces">necklaces</option>
+              <option value="rings">rings</option>
+              <option value="bridal-sets">bridal-sets</option>
+              <option value="daily-wear">daily-wear</option>
+            </select>
+          </label>
+
+          <label style={label()}>
+            Price
+            <input
+              type="number"
+              value={price}
+              onChange={(e) => setPrice(Number(e.target.value))}
+              style={input()}
+            />
+          </label>
+        </div>
+
+        <label style={label()}>
+          Image URL
+          <input
+            value={image}
+            onChange={(e) => setImage(e.target.value)}
+            placeholder="https://..."
+            style={input()}
+          />
+        </label>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 6 }}>
+          <button disabled={saving} type="submit" style={primaryBtn()}>
+            {saving ? "Saving..." : "Save Product"}
+          </button>
+
+          {msg && (
+            <div style={{ fontSize: 14, opacity: 0.9 }}>
+              {msg}
+            </div>
+          )}
+        </div>
+
+        <div style={{ marginTop: 10, fontSize: 13, opacity: 0.7 }}>
+          This will call: <code>POST {API_BASE}/admin/products</code>
+        </div>
+      </form>
     </div>
   );
+}
+
+/* styles */
+function card(): React.CSSProperties {
+  return {
+    marginTop: 14,
+    background: "white",
+    border: "1px solid #e5e7eb",
+    borderRadius: 14,
+    padding: 14,
+    display: "grid",
+    gap: 12,
+  };
+}
+function label(): React.CSSProperties {
+  return {
+    display: "grid",
+    gap: 6,
+    fontSize: 14,
+    fontWeight: 600,
+  };
+}
+function input(): React.CSSProperties {
+  return {
+    padding: "10px 12px",
+    borderRadius: 12,
+    border: "1px solid #e5e7eb",
+    fontSize: 14,
+    outline: "none",
+  };
+}
+function btn(): React.CSSProperties {
+  return {
+    padding: "9px 12px",
+    borderRadius: 10,
+    border: "1px solid #e5e7eb",
+    background: "white",
+    cursor: "pointer",
+    fontSize: 14,
+  };
+}
+function primaryBtn(): React.CSSProperties {
+  return {
+    padding: "10px 14px",
+    borderRadius: 12,
+    border: "1px solid #111827",
+    background: "#111827",
+    color: "white",
+    cursor: "pointer",
+    fontSize: 14,
+    fontWeight: 700,
+  };
 }

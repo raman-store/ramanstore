@@ -2,31 +2,13 @@ import express from "express";
 import cors from "cors";
 
 const app = express();
+
+// --- middlewares ---
+app.use(cors());
 app.use(express.json());
 
-// ✅ CORS (Vercel + Admin local)
-app.use(
-  cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:3000",
-      "https://ramanstore-frontend.vercel.app",
-      // agar aapka vercel url kuch aur hai to add kar dena
-    ],
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
-
-// ✅ Health
-app.get("/health", (req, res) => {
-  res.json({ ok: true });
-});
-
-// ---------------------------
-// In-memory DB (abhi demo)
-// ---------------------------
-let products = [
+// --- in-memory DB (abhi demo) ---
+let PRODUCTS = [
   {
     id: 1,
     slug: "emerald-glow-earrings",
@@ -69,68 +51,67 @@ let products = [
   },
 ];
 
-// ✅ SHOP (Frontend)
+// --- health ---
+app.get("/health", (req, res) => res.json({ ok: true }));
+
+// --- storefront endpoint ---
 app.get("/shop", (req, res) => {
   const { category } = req.query;
+  const items = category
+    ? PRODUCTS.filter((p) => p.category === String(category))
+    : PRODUCTS;
 
-  const filtered =
-    category && category !== "all"
-      ? products.filter((p) => p.category === category)
-      : products;
-
-  res.json({ items: filtered, total: filtered.length });
+  res.json({ items, total: items.length });
 });
 
-// ✅ ADMIN - list all products
+// --- admin endpoints ---
 app.get("/admin/products", (req, res) => {
-  res.json({ items: products, total: products.length });
+  res.json({ items: PRODUCTS, total: PRODUCTS.length });
 });
 
-// ✅ ADMIN - add product
 app.post("/admin/products", (req, res) => {
-  const { title, price, category, image, slug } = req.body;
+  const { title, slug, price, category, image } = req.body || {};
 
-  if (!title || !price || !category) {
-    return res.status(400).json({ error: "title, price, category required" });
+  if (!title || !slug || !category) {
+    return res.status(400).json({ error: "title, slug, category are required" });
   }
 
-  const id = products.length ? Math.max(...products.map((p) => p.id)) + 1 : 1;
+  const exists = PRODUCTS.some((p) => p.slug === slug);
+  if (exists) {
+    return res.status(409).json({ error: "slug already exists" });
+  }
 
-  const newItem = {
+  const id = PRODUCTS.length ? Number(PRODUCTS[PRODUCTS.length - 1].id) + 1 : 1;
+
+  const product = {
     id,
-    title,
-    price: Number(price),
-    category,
-    image: image || "https://picsum.photos/seed/new/600/600",
-    slug: slug || `${title}`.toLowerCase().replace(/\s+/g, "-"),
+    title: String(title),
+    slug: String(slug),
+    category: String(category),
+    price: Number(price ?? 0),
+    image: image ? String(image) : "",
   };
 
-  products.push(newItem);
-  res.status(201).json(newItem);
+  PRODUCTS.push(product);
+  res.status(201).json(product);
 });
 
-// ✅ ADMIN - update product
-app.put("/admin/products/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const idx = products.findIndex((p) => p.id === id);
-
-  if (idx === -1) return res.status(404).json({ error: "Not found" });
-
-  products[idx] = { ...products[idx], ...req.body, id };
-  res.json(products[idx]);
-});
-
-// ✅ ADMIN - delete product
 app.delete("/admin/products/:id", (req, res) => {
-  const id = Number(req.params.id);
-  products = products.filter((p) => p.id !== id);
+  const id = req.params.id;
+  const before = PRODUCTS.length;
+  PRODUCTS = PRODUCTS.filter((p) => String(p.id) !== String(id));
+  const after = PRODUCTS.length;
+
+  if (before === after) {
+    return res.status(404).json({ error: "not found" });
+  }
+
   res.json({ ok: true });
 });
 
-// ✅ Root optional (to avoid Cannot GET /)
-app.get("/", (req, res) => {
-  res.send("RamanStore API is running. Try /health or /shop");
-});
+// --- root ---
+app.get("/", (req, res) => res.send("RamanStore API running"));
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log("API running on", PORT));
+// --- start ---
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => console.log("API running on port", PORT));
