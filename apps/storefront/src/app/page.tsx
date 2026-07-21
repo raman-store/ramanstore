@@ -9,15 +9,15 @@ export default function HomePage() {
       <section className="card" style={{ padding: 18, display: "grid", gap: 16 }}>
         <div style={{ display: "grid", gap: 6 }}>
           <h1 style={{ margin: 0, fontSize: 34, lineHeight: 1.1, letterSpacing: -0.6 }}>
-            Elegant Artificial Jewellery <span style={{ color: "var(--emerald)" }}>for Every Occasion</span>
+            Fashion for the whole family, <span style={{ color: "var(--emerald)" }}>all in one store</span>
           </h1>
           <p style={{ margin: 0, opacity: 0.8 }}>
-            Premium finish • Trendy designs • Pan-India delivery • Secure payments
+            Female wear • Kids wear • Artificial jewellery • Pan-India delivery
           </p>
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <Link className="btn btnPrimary" href="/shop">Shop Collection</Link>
-          <Link className="btn btnGhost" href="/shop?category=bridal-sets">Bridal Sets</Link>
+          <Link className="btn btnGhost" href="/shop?category=artificial-jewellery">Jewellery</Link>
         </div>
       </section>
 
