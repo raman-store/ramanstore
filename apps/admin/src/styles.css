@@ -1,0 +1,25 @@
+:root {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #111827; }
+button, input, select, textarea { font: inherit; }
+.adminPage { padding: 4px; }
+.pageTitle h2 { margin: 0; }.pageTitle p { margin: 5px 0 0; color: #6b7280; }
+.adminForm { margin-top: 18px; max-width: 850px; padding: 20px; border-radius: 16px; border: 1px solid #e5e7eb; background: white; display: grid; gap: 15px; }
+.adminForm label { display: grid; gap: 7px; font-size: 14px; font-weight: 700; }
+.adminForm input, .adminForm select, .adminForm textarea { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 10px; background: white; }
+.formGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.adminForm .checkLabel { display: flex; align-items: center; }.checkLabel input { width: auto; }
+.formActions { display: flex; gap: 10px; }.formActions button { padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 10px; background: white; cursor: pointer; }
+.formActions .primaryButton { color: white; background: #111827; border-color: #111827; font-weight: 800; }.errorMessage { padding: 10px; color: #991b1b; background: #fef2f2; border-radius: 10px; }
+
+body {
+  margin: 0;
+  background: #f6f7fb;
+  color: #111827;
+}
+
+a { color: inherit; }
