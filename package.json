@@ -9,14 +9,18 @@
     "dev": "npm-run-all -p dev:api dev:store dev:admin",
     "dev:api": "npm --workspace apps/api run dev",
     "dev:store": "npm --workspace apps/storefront run dev",
-    "dev:admin": "npm --workspace apps/admin run dev"
+    "dev:admin": "npm --workspace apps/admin run dev",
+
+    "build": "npm --workspace apps/storefront run build",
+    "start": "npm --workspace apps/storefront run start",
+
+    "build:store": "npm --workspace apps/storefront run build",
+    "start:store": "npm --workspace apps/storefront run start",
+
+    "build:admin": "npm --workspace apps/admin run build",
+    "start:api": "npm --workspace apps/api run start"
   },
   "devDependencies": {
     "npm-run-all": "^4.1.5"
-  },
-  "dependencies": {
-    "next": "^16.1.6",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4"
   }
 }
