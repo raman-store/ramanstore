@@ -1,42 +1,15 @@
 import Link from "next/link";
-import Image from "next/image";
+import { fetchProducts } from "../lib/api";
 
-type P = {
-  id: string;
-  title: string;
-  slug: string;
-  price: number;
-  mrp?: number;
-  isFeatured?: boolean;
-  images?: string[];
-};
-
-async function getProducts() {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/products`, { cache: "no-store" });
-  return res.json();
-}
-
-export async function ProductGrid({ featuredOnly }: { featuredOnly?: boolean }) {
-  const items: P[] = await getProducts();
-  const list = featuredOnly ? items.filter(p => p.isFeatured) : items;
-
-  return (
-    <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-      {list.map(p => (
-        <Link key={p.id} href={`/p/${p.slug}`} className="card" style={{ overflow: "hidden" }}>
-          <div style={{ position: "relative", width: "100%", aspectRatio: "1/1" }}>
-            <Image src={p.images?.[0]} alt={p.title} fill style={{ objectFit: "cover" }} />
-          </div>
-          <div style={{ padding: 12, display: "grid", gap: 6 }}>
-            <div style={{ fontWeight: 900 }}>{p.title}</div>
-            <div style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-              <div style={{ fontWeight: 900 }}>₹{p.price}</div>
-              {p.mrp ? <div style={{ textDecoration: "line-through", opacity: 0.6, fontSize: 13 }}>₹{p.mrp}</div> : null}
-            </div>
-            <div style={{ fontSize: 12, color: "var(--emerald)", fontWeight: 800 }}>View details →</div>
-          </div>
-        </Link>
-      ))}
-    </div>
-  );
+export async function ProductGrid({ featuredOnly, category, q }: { featuredOnly?: boolean; category?: string; q?: string }) {
+  const params = new URLSearchParams();
+  if (featuredOnly) params.set("featured", "true");
+  if (category) params.set("category", category);
+  if (q) params.set("q", q);
+  const items = await fetchProducts(params.size ? `?${params}` : "");
+  if (!items.length) return <div className="card emptyState">No matching products found.</div>;
+  return <div className="productGrid">{items.map((p) => <Link key={p.id} href={`/p/${p.slug}`} className="card productCard">
+    <div className="productImageWrap">{p.image ? <img src={p.image} alt={p.title} className="productImage" /> : <div className="imagePlaceholder">Raman Store</div>}{p.mrp && p.mrp > p.price ? <span className="discountBadge">{Math.round((1 - p.price / p.mrp) * 100)}% OFF</span> : null}</div>
+    <div className="productInfo"><div className="eyebrow">{p.subcategory || p.category}</div><div className="productTitle">{p.title}</div><div className="priceRow"><strong>₹{p.price}</strong>{p.mrp ? <span className="mrp">₹{p.mrp}</span> : null}</div><div className={p.stock > 0 ? "stock inStock" : "stock outStock"}>{p.stock > 0 ? `${p.stock} in stock` : "Out of stock"}</div></div>
+  </Link>)}</div>;
 }
