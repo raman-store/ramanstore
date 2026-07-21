@@ -1,15 +1,9 @@
+import Link from "next/link";
 import { ProductGrid } from "../ui/ProductGrid";
 
-export default function ShopPage() {
-  return (
-    <div className="container" style={{ padding: "20px 16px" }}>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-        <h2 style={{ margin: 0 }}>Shop</h2>
-        <div style={{ fontSize: 13, opacity: 0.75 }}>Filters & sorting can be added next.</div>
-      </div>
+const filters = [["All", ""], ["Female Wear", "female-wear"], ["Kids Wear", "kids-wear"], ["Artificial Jewellery", "artificial-jewellery"]];
 
-      <div style={{ height: 14 }} />
-      <ProductGrid />
-    </div>
-  );
+export default function ShopPage({ searchParams }: { searchParams: { category?: string; q?: string } }) {
+  const active = searchParams.category || "";
+  return <div className="container shopPage"><div className="sectionHeading"><div><div className="eyebrow">Raman Store Collection</div><h1>Shop all products</h1></div>{searchParams.q ? <div>Results for “{searchParams.q}”</div> : null}</div><div className="filterRow">{filters.map(([label, value]) => <Link key={label} className={`filterChip ${active === value ? "active" : ""}`} href={value ? `/shop?category=${value}` : "/shop"}>{label}</Link>)}</div><ProductGrid category={active} q={searchParams.q} /></div>;
 }
