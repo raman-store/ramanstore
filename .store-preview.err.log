@@ -50,3 +50,11 @@ Import trace for requested module:
 ./src/app/ui/ProductGrid.tsx
 ./src/app/ui/FeaturedProducts.tsx
 ./src/app/page.tsx
+ ⨯ ./src/app/ui/Header.tsx
+Error: Failed to read source code from C:\Users\ADMIN\OneDrive\Desktop\ramanstore\apps\storefront\src\app\ui\Header.tsx
+
+Caused by:
+    The system cannot find the file specified. (os error 2)
+
+Import trace for requested module:
+./src/app/ui/Header.tsx
