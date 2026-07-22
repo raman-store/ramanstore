@@ -11,7 +11,8 @@
     "image": "https://picsum.photos/seed/earrings1/800/800",
     "description": "Elegant emerald-finish earrings for festive and everyday styling.",
     "stock": 20,
-    "isFeatured": true
+    "isFeatured": true,
+    "isNewArrival": true
   },
   {
     "id": "2",
@@ -25,7 +26,8 @@
     "image": "https://picsum.photos/seed/kurti1/800/800",
     "description": "Comfortable printed kurti set with a flattering everyday fit.",
     "stock": 12,
-    "isFeatured": true
+    "isFeatured": true,
+    "isNewArrival": true
   },
   {
     "id": "3",
@@ -39,7 +41,8 @@
     "image": "https://picsum.photos/seed/kidsdress1/800/800",
     "description": "Soft and festive party dress designed for all-day comfort.",
     "stock": 8,
-    "isFeatured": true
+    "isFeatured": true,
+    "isNewArrival": true
   },
   {
     "id": "4",
