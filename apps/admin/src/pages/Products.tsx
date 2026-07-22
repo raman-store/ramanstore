@@ -92,7 +92,7 @@ export default function Products() {
   }, [items, q, cat]);
 
   return (
-    <div style={{ padding: 16 }}>
+    <div className="adminPage productsPage">
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div>
           <h2 style={{ margin: 0 }}>Products</h2>
