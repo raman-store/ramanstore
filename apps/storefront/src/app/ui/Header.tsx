@@ -1,7 +1,3 @@
 "use client";
-
 import Link from "next/link";
-
-export function Header() {
-  return <header className="siteHeader"><div className="container headerInner"><Link href="/" className="brand"><span className="brandMark">RS</span><span><strong>Raman Store</strong><small>Fashion for every celebration</small></span></Link><form action="/shop" className="searchForm"><input className="input" name="q" placeholder="Search products…" /></form><nav className="mainNav"><Link href="/shop?category=female-wear">Women</Link><Link href="/shop?category=kids-wear">Kids</Link><Link href="/shop?category=artificial-jewellery">Jewellery</Link><Link className="btn btnPrimary" href="/shop">Shop</Link></nav></div></header>;
-}
+export function Header(){return <><div className="announcement">Complimentary delivery on orders above ₹999 <span>·</span> Shop with confidence</div><header className="siteHeader"><div className="container headerInner"><Link href="/" className="brand"><span className="brandMark">R</span><span><strong>RAMAN</strong><small>STORE</small></span></Link><nav className="mainNav" aria-label="Main navigation"><Link href="/shop">New arrivals</Link><Link href="/shop?category=female-wear">Women</Link><Link href="/shop?category=kids-wear">Kids</Link><Link href="/shop?category=artificial-jewellery">Jewellery</Link></nav><div className="headerTools"><form action="/shop" className="searchForm"><input name="q" aria-label="Search products" placeholder="Search"/><button aria-label="Submit search">⌕</button></form><Link className="bagLink" href="/shop" aria-label="Shopping bag">Bag <span>0</span></Link></div></div></header></>}
