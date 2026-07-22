@@ -37,12 +37,19 @@ function saveProducts(products) {
   fs.writeFileSync(dataFile, JSON.stringify(products, null, 2));
 }
 
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:3000,http://localhost:5174")
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5174,http://127.0.0.1:5174")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
-app.use(cors({ origin: (origin, cb) => !origin || allowedOrigins.includes(origin) ? cb(null, true) : cb(new Error(`CORS blocked for origin: ${origin}`)) }));
+app.use(cors({
+  origin: (origin, cb) => {
+    const localPreview = /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin || "");
+    return !origin || allowedOrigins.includes(origin) || localPreview
+      ? cb(null, true)
+      : cb(new Error(`CORS blocked for origin: ${origin}`));
+  },
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static(uploadsDir));
