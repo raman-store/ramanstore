@@ -1,11 +1,3 @@
 import Link from "next/link";
-
-const categories = [
-  { title: "Female Wear", slug: "female-wear", note: "Kurtis, suits, sarees and more" },
-  { title: "Kids Wear", slug: "kids-wear", note: "Comfortable styles for kids" },
-  { title: "Artificial Jewellery", slug: "artificial-jewellery", note: "Everyday and occasion jewellery" },
-];
-
-export function CategoryGrid() {
-  return <section><div className="sectionHeading"><h2>Shop by category</h2><Link href="/shop">View all</Link></div><div className="categoryGrid">{categories.map((category) => <Link key={category.slug} href={`/shop?category=${category.slug}`} className="card categoryCard"><div className="categoryIcon">{category.title.charAt(0)}</div><div><strong>{category.title}</strong><p>{category.note}</p></div></Link>)}</div></section>;
-}
+const categories=[{title:"Women’s wear",slug:"female-wear",note:"Refined everyday & occasion styles",n:"01"},{title:"Kids’ wear",slug:"kids-wear",note:"Comfort made wonderfully playful",n:"02"},{title:"Jewellery",slug:"artificial-jewellery",note:"The finishing touch to every look",n:"03"}];
+export function CategoryGrid(){return <section className="collectionSection"><div className="sectionHeading"><div><span className="kicker dark">Curated for you</span><h2>Shop our collections</h2></div><Link href="/shop">View all products →</Link></div><div className="categoryGrid">{categories.map(c=><Link key={c.slug} href={`/shop?category=${c.slug}`} className={`categoryCard category${c.n}`}><span className="categoryNumber">{c.n}</span><div><h3>{c.title}</h3><p>{c.note}</p><span className="circleArrow">→</span></div></Link>)}</div></section>}
