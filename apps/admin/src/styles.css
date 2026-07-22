@@ -9,3 +9,4 @@
 @media(max-width:600px){.formSection{padding:18px 14px}.formGrid.three,.publishOptions{grid-template-columns:1fr}.mediaPreviewGrid{grid-template-columns:repeat(3,1fr)}.mediaPreviewGrid img,.mediaPreviewGrid video{height:90px}.easyProductForm .formActions{border-radius:0;margin:0 -14px;padding:10px 14px}}
 .adminBrandLogo{width:44px;height:44px;display:grid;place-items:center;background:white;border-radius:11px;overflow:hidden;box-shadow:0 5px 15px rgba(0,0,0,.2);flex:0 0 auto}.adminBrandLogo img{width:100%;height:100%;object-fit:cover;transform:scale(1.08)}
 @media(max-width:900px){.adminBrandLogo{width:42px;height:42px}}
+.catalogueLoading{margin-top:18px;display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px}.catalogueLoading span{width:18px;height:18px;border:2px solid #d8e0db;border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
