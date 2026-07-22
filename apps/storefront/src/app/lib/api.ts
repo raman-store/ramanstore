@@ -1,6 +1,7 @@
 export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/$/, "");
 
-export type Product = { id: string; title: string; slug: string; price: number; mrp?: number; category: string; subcategory?: string; audience?: string; image?: string; description?: string; stock: number; isFeatured?: boolean };
+export type ProductMedia = { type: "image" | "video"; url: string };
+export type Product = { id: string; title: string; slug: string; price: number; mrp?: number; category: string; subcategory?: string; audience?: string; image?: string; media?: ProductMedia[]; description?: string; stock: number; isFeatured?: boolean; isNewArrival?: boolean; createdAt?: string };
 
 export async function fetchProducts(query = "") {
   const res = await fetch(`${API_BASE}/products${query}`, { cache: "no-store" });
