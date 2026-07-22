@@ -134,19 +134,12 @@ export default function Products() {
         </div>
       </div>
 
-      {loading && <p style={{ marginTop: 14 }}>Loading…</p>}
+      {loading && <div className="catalogueLoading"><span />Loading products…</div>}
 
       {!loading && err && (
         <div style={errorBox()}>
-          <b>Failed:</b> {err}
-          <div style={{ marginTop: 8, fontSize: 13 }}>
-            Check:
-            <ul style={{ margin: "8px 0 0 18px" }}>
-              <li>Backend route exists: <code>/admin/products</code></li>
-              <li>Vercel env set: <code>VITE_API_BASE</code></li>
-              <li>CORS allow your admin origin</li>
-            </ul>
-          </div>
+          <b>Products could not be loaded.</b>
+          <div style={{ marginTop: 6, fontSize: 13 }}>Please check your connection and try Refresh. Technical detail: {err}</div>
         </div>
       )}
 
