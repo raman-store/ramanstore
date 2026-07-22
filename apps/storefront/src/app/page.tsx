@@ -3,50 +3,8 @@ import { CategoryGrid } from "./ui/CategoryGrid";
 import { FeaturedProducts } from "./ui/FeaturedProducts";
 
 export default function HomePage() {
-  return (
-    <div className="container" style={{ padding: "20px 16px" }}>
-      {/* Hero */}
-      <section className="card" style={{ padding: 18, display: "grid", gap: 16 }}>
-        <div style={{ display: "grid", gap: 6 }}>
-          <h1 style={{ margin: 0, fontSize: 34, lineHeight: 1.1, letterSpacing: -0.6 }}>
-            Fashion for the whole family, <span style={{ color: "var(--emerald)" }}>all in one store</span>
-          </h1>
-          <p style={{ margin: 0, opacity: 0.8 }}>
-            Female wear • Kids wear • Artificial jewellery • Pan-India delivery
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <Link className="btn btnPrimary" href="/shop">Shop Collection</Link>
-          <Link className="btn btnGhost" href="/shop?category=artificial-jewellery">Jewellery</Link>
-        </div>
-      </section>
-
-      <div style={{ height: 18 }} />
-
-      <CategoryGrid />
-
-      <div style={{ height: 18 }} />
-
-      <FeaturedProducts />
-
-      <div style={{ height: 18 }} />
-
-      {/* Trust Strip */}
-      <section className="card" style={{ padding: 16 }}>
-        <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-          {[
-            ["Premium Finish", "Luxury look at affordable prices."],
-            ["Fast Dispatch", "Stock + Made-to-order supported."],
-            ["Pan India Delivery", "City/state wise shipping supported."],
-            ["Secure Payments", "Razorpay integration planned."]
-          ].map(([t, d]) => (
-            <div key={t} style={{ padding: 12, border: "1px solid var(--border)", borderRadius: 16, background: "white" }}>
-              <div style={{ fontWeight: 900 }}>{t}</div>
-              <div style={{ fontSize: 13, opacity: 0.75 }}>{d}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-    </div>
-  );
+  return <>
+    <section className="hero"><div className="container heroInner"><div className="heroCopy"><span className="kicker">New season · Made for every celebration</span><h1>Style for every story, <em>all in one place.</em></h1><p>Discover thoughtfully selected fashion and jewellery for women and kids—beautifully priced and delivered across India.</p><div className="heroActions"><Link className="btn btnPrimary" href="/shop">Explore the collection <span>→</span></Link><Link className="textLink" href="/shop?category=artificial-jewellery">Shop jewellery</Link></div><div className="heroProof"><span><strong>4.8/5</strong> customer rating</span><span><strong>Pan-India</strong> delivery</span><span><strong>Easy</strong> assistance</span></div></div><div className="heroVisual"><div className="heroTile heroTileLarge"><span>THE FESTIVE EDIT</span><strong>Elegance,<br/>effortlessly.</strong><Link href="/shop?category=female-wear">Discover women’s wear →</Link></div><div className="heroTile heroTileSmall"><span>FROM ₹299</span><strong>Little luxuries</strong><small>Jewellery for every moment</small></div></div></div></section>
+    <main className="container homeContent"><CategoryGrid/><FeaturedProducts/><section className="promiseSection"><div><span className="promiseIcon">◇</span><strong>Quality selected</strong><p>Products chosen for finish, comfort and value.</p></div><div><span className="promiseIcon">↗</span><strong>Quick dispatch</strong><p>Clear stock status and dependable fulfilment.</p></div><div><span className="promiseIcon">⌂</span><strong>Delivered across India</strong><p>From our store to your doorstep, with care.</p></div><div><span className="promiseIcon">✓</span><strong>Secure shopping</strong><p>Transparent pricing and responsive support.</p></div></section></main>
+  </>;
 }
