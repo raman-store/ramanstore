@@ -1,22 +1,2 @@
 import Link from "next/link";
-
-export function Footer() {
-  return (
-    <footer style={{ borderTop: "1px solid var(--border)", marginTop: 34 }}>
-      <div className="container" style={{ padding: "26px 16px", display: "grid", gap: 12 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-          <div>
-            <div style={{ fontWeight: 900 }}>RamanStore</div>
-            <div style={{ fontSize: 13, opacity: 0.75 }}>Elegant artificial jewellery for every occasion.</div>
-          </div>
-          <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-            <Link href="/policies">Policies</Link>
-            <Link href="/contact">Contact</Link>
-            <Link href="/track">Track Order</Link>
-          </div>
-        </div>
-        <div style={{ fontSize: 12, opacity: 0.65 }}>© {new Date().getFullYear()} RamanStore.com</div>
-      </div>
-    </footer>
-  );
-}
+export function Footer(){return <footer className="siteFooter"><div className="container footerGrid"><div className="footerBrand"><div className="brand brandLight"><span className="brandMark">R</span><span><strong>RAMAN</strong><small>STORE</small></span></div><p>Thoughtful fashion for women and kids, with jewellery made to finish every look.</p></div><div><strong>Shop</strong><Link href="/shop?category=female-wear">Women</Link><Link href="/shop?category=kids-wear">Kids</Link><Link href="/shop?category=artificial-jewellery">Jewellery</Link></div><div><strong>Help</strong><Link href="/contact">Contact us</Link><Link href="/track">Track order</Link><Link href="/policies">Shipping & returns</Link></div><div className="newsletter"><strong>Stay in the know</strong><p>New arrivals, festive edits and special offers.</p><form><input type="email" aria-label="Email address" placeholder="Email address"/><button aria-label="Subscribe">→</button></form></div></div><div className="container footerBottom"><span>© {new Date().getFullYear()} Raman Store</span><span>Made with care in India</span></div></footer>}
