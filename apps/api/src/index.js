@@ -52,12 +52,19 @@ const upload = multer({
     destination: (_req, _file, cb) => cb(null, uploadsDir),
     filename: (_req, file, cb) => cb(null, `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, "-")}`),
   }),
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => cb(null, file.mimetype.startsWith("image/")),
+  limits: { fileSize: 25 * 1024 * 1024, files: 10 },
+  fileFilter: (_req, file, cb) => cb(null, file.mimetype.startsWith("image/") || file.mimetype.startsWith("video/")),
 });
 
 function productFromRequest(req, existing = {}) {
-  const uploadedImage = req.file ? `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}` : "";
+  const uploadedMedia = (req.files || []).map((file) => ({
+    type: file.mimetype.startsWith("video/") ? "video" : "image",
+    url: `${req.protocol}://${req.get("host")}/uploads/${file.filename}`,
+  }));
+  let urlMedia = [];
+  try { urlMedia = JSON.parse(req.body.mediaUrls || "[]"); } catch { urlMedia = []; }
+  const existingMedia = Array.isArray(existing.media) ? existing.media : (existing.image ? [{ type: "image", url: existing.image }] : []);
+  const media = [...existingMedia, ...urlMedia, ...uploadedMedia].filter((item, index, all) => item?.url && all.findIndex((candidate) => candidate.url === item.url) === index);
   return {
     ...existing,
     title: String(req.body.title ?? existing.title ?? "").trim(),
@@ -70,7 +77,10 @@ function productFromRequest(req, existing = {}) {
     stock: Number(req.body.stock ?? existing.stock ?? 0),
     description: String(req.body.description ?? existing.description ?? "").trim(),
     isFeatured: String(req.body.isFeatured ?? existing.isFeatured) === "true",
-    image: uploadedImage || String(req.body.image ?? existing.image ?? "").trim(),
+    isNewArrival: String(req.body.isNewArrival ?? existing.isNewArrival) === "true",
+    media,
+    image: media.find((item) => item.type === "image")?.url || String(req.body.image ?? existing.image ?? "").trim(),
+    createdAt: existing.createdAt || new Date().toISOString(),
   };
 }
 
@@ -87,11 +97,12 @@ app.get("/health", (_req, res) => res.json({ ok: true }));
 
 app.get(["/products", "/shop"], (req, res) => {
   let items = readProducts();
-  const { category, subcategory, audience, featured, q } = req.query;
+  const { category, subcategory, audience, featured, newArrival, q } = req.query;
   if (category) items = items.filter((p) => p.category === String(category));
   if (subcategory) items = items.filter((p) => p.subcategory === String(subcategory));
   if (audience) items = items.filter((p) => p.audience === String(audience));
   if (featured === "true") items = items.filter((p) => p.isFeatured);
+  if (newArrival === "true") items = items.filter((p) => p.isNewArrival);
   if (q) {
     const query = String(q).toLowerCase();
     items = items.filter((p) => `${p.title} ${p.category} ${p.subcategory}`.toLowerCase().includes(query));
@@ -116,7 +127,7 @@ app.get("/admin/products/:id", (req, res) => {
   res.json({ item });
 });
 
-app.post("/admin/products", upload.single("imageFile"), (req, res) => {
+app.post("/admin/products", upload.array("mediaFiles", 10), (req, res) => {
   const products = readProducts();
   const item = productFromRequest(req, { id: String(Date.now()) });
   const validationError = validateProduct(item, products);
@@ -126,7 +137,7 @@ app.post("/admin/products", upload.single("imageFile"), (req, res) => {
   res.status(201).json({ ok: true, item });
 });
 
-app.put("/admin/products/:id", upload.single("imageFile"), (req, res) => {
+app.put("/admin/products/:id", upload.array("mediaFiles", 10), (req, res) => {
   const products = readProducts();
   const index = products.findIndex((p) => String(p.id) === String(req.params.id));
   if (index < 0) return res.status(404).json({ message: "Product not found." });
