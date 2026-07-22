@@ -1,15 +1,2 @@
-import Link from "next/link";
-import { ProductGrid } from "./ProductGrid";
-
-export function FeaturedProducts() {
-  return (
-    <section>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        <h3 style={{ margin: 0 }}>Featured</h3>
-        <Link href="/shop" style={{ fontSize: 13, color: "var(--emerald)", fontWeight: 700 }}>Shop →</Link>
-      </div>
-      <div style={{ height: 12 }} />
-      <ProductGrid featuredOnly />
-    </section>
-  );
-}
+import Link from "next/link";import{ProductGrid}from"./ProductGrid";
+export function FeaturedProducts(){return <section className="featuredSection"><div className="sectionHeading"><div><span className="kicker dark">The Raman edit</span><h2>Trending now</h2></div><Link href="/shop">Shop all →</Link></div><ProductGrid featuredOnly/></section>}
