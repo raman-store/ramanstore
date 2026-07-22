@@ -37,7 +37,7 @@ function saveProducts(products) {
   fs.writeFileSync(dataFile, JSON.stringify(products, null, 2));
 }
 
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5174,http://127.0.0.1:5174")
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "https://ramanstore.com,https://www.ramanstore.com,https://admin.ramanstore.com,http://localhost:3000,http://127.0.0.1:3000,http://localhost:5174,http://127.0.0.1:5174")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
