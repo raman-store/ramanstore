@@ -1,0 +1,35 @@
+
+> ramanstore-storefront@1.0.0 dev
+> next dev
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 4.4s
+ ○ Compiling / ...
+ ✓ Compiled / in 8.1s (512 modules)
+ GET / 200 in 8978ms
+ ✓ Compiled in 629ms (498 modules)
+ ✓ Compiled in 920ms (498 modules)
+ ✓ Compiled in 62ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1734ms (492 modules)
+ GET / 404 in 279ms
+ ✓ Compiled in 601ms (492 modules)
+ ✓ Compiled in 513ms (216 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 1771ms (488 modules)
+ ✓ Compiled in 589ms (501 modules)
+ GET / 200 in 561ms
+ ✓ Compiled in 394ms (515 modules)
+ GET / 200 in 419ms
+ GET / 200 in 416ms
+ ✓ Compiled in 465ms (498 modules)
+ GET / 200 in 1960ms
+ ○ Compiling /shop ...
+ ✓ Compiled /shop in 854ms (500 modules)
+ ✓ Compiled /_not-found in 233ms (503 modules)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 2.2s (730 modules)
