@@ -10,7 +10,7 @@ type Product = {
   image?: string;
 };
 
-const CATEGORIES = ["earrings", "necklaces", "rings", "bridal-sets", "daily-wear"] as const;
+const CATEGORIES = ["female-wear", "kids-wear", "artificial-jewellery"] as const;
 
 function getApiBase() {
   const viteBase = (import.meta as any)?.env?.VITE_API_BASE as string | undefined;
@@ -96,7 +96,7 @@ export default function Products() {
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div>
           <h2 style={{ margin: 0 }}>Products</h2>
-          <div style={{ fontSize: 13, opacity: 0.75 }}>API: {API_BASE}</div>
+          <div style={{ fontSize: 13, opacity: 0.75 }}>Manage pricing, inventory and product visibility</div>
         </div>
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -160,7 +160,7 @@ export default function Products() {
                 <th style={th()}>Category</th>
                 <th style={th()}>Price</th>
                 <th style={th()}>Slug</th>
-                <th style={th()}>Image</th>
+                <th style={th()}>Preview</th>
                 <th style={th()}>Actions</th>
               </tr>
             </thead>
@@ -170,12 +170,12 @@ export default function Products() {
                   <td style={tdMono()}>{p.id}</td>
                   <td style={td()}>{p.title}</td>
                   <td style={td()}>{p.category}</td>
-                  <td style={td()}>{p.price}</td>
+                  <td style={td()}>₹{p.price.toLocaleString("en-IN")}</td>
                   <td style={tdMono()}>{p.slug}</td>
                   <td style={td()}>
                     {p.image ? (
                       <a href={p.image} target="_blank" rel="noreferrer">
-                        open
+                        View image
                       </a>
                     ) : (
                       "-"
