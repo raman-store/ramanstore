@@ -93,20 +93,20 @@ export default function Products() {
 
   return (
     <div className="adminPage productsPage">
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+      <div className="catalogueHeader">
         <div>
           <h2 style={{ margin: 0 }}>Products</h2>
           <div style={{ fontSize: 13, opacity: 0.75 }}>Manage pricing, inventory and product visibility</div>
         </div>
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <button onClick={load} style={btn()}>
+        <div className="catalogueActions">
+          <button onClick={load} className="secondaryButton">
             Refresh
           </button>
 
           <Link
             to="/products/new"
-            style={{ ...primaryBtn(), textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+            className="cataloguePrimaryButton"
           >
             + Add Product
           </Link>
@@ -114,22 +114,22 @@ export default function Products() {
       </div>
 
       {/* Filters */}
-      <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
+      <div className="catalogueFilters">
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search title / slug / category..."
-          style={input()}
+          className="catalogueInput"
         />
 
-        <select value={cat} onChange={(e) => setCat(e.target.value)} style={{ ...input(), width: 200 }}>
+        <select value={cat} onChange={(e) => setCat(e.target.value)} className="catalogueInput catalogueSelect">
           <option value="all">All categories</option>
           {CATEGORIES.map((c) => (
             <option key={c} value={c}>{c}</option>
           ))}
         </select>
 
-        <div style={{ fontSize: 14, alignSelf: "center", opacity: 0.85 }}>
+        <div className="catalogueCount">
           Showing <b>{filtered.length}</b> of <b>{items.length}</b>
         </div>
       </div>
@@ -144,7 +144,8 @@ export default function Products() {
       )}
 
       {!loading && !err && (
-        <div style={{ overflowX: "auto", marginTop: 12 }}>
+        <>
+        <div className="catalogueTableWrap">
           <table style={table()}>
             <thead>
               <tr>
@@ -178,7 +179,7 @@ export default function Products() {
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                       <Link
                         to={`/products/${p.id}/edit`}
-                        style={{ ...btn(), textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+                        className="secondaryButton"
                       >
                         Edit
                       </Link>
@@ -200,6 +201,27 @@ export default function Products() {
             </tbody>
           </table>
         </div>
+        <div className="productCardList">
+          {filtered.map((p) => (
+            <article className="catalogueCard" key={String(p.id)}>
+              <div className="catalogueCardTop">
+                <div>
+                  <span className="catalogueCardCategory">{p.category.replace(/-/g, " ")}</span>
+                  <h3>{p.title}</h3>
+                  <small>#{p.id} · {p.slug}</small>
+                </div>
+                <strong>₹{p.price.toLocaleString("en-IN")}</strong>
+              </div>
+              <div className="catalogueCardActions">
+                {p.image && <a href={p.image} target="_blank" rel="noreferrer" className="secondaryButton">View image</a>}
+                <Link to={`/products/${p.id}/edit`} className="secondaryButton">Edit product</Link>
+                <button onClick={() => remove(p.id)} className="dangerButton">Delete</button>
+              </div>
+            </article>
+          ))}
+          {filtered.length === 0 && <div className="catalogueEmpty">No products found.</div>}
+        </div>
+        </>
       )}
     </div>
   );
@@ -240,16 +262,6 @@ function tdMono(): React.CSSProperties {
     fontSize: 13,
   };
 }
-function input(): React.CSSProperties {
-  return {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid #e5e7eb",
-    fontSize: 14,
-    outline: "none",
-    minWidth: 260,
-  };
-}
 function btn(): React.CSSProperties {
   return {
     padding: "9px 12px",
@@ -258,18 +270,6 @@ function btn(): React.CSSProperties {
     background: "white",
     cursor: "pointer",
     fontSize: 14,
-  };
-}
-function primaryBtn(): React.CSSProperties {
-  return {
-    padding: "9px 12px",
-    borderRadius: 10,
-    border: "1px solid #111827",
-    background: "#111827",
-    color: "white",
-    cursor: "pointer",
-    fontSize: 14,
-    fontWeight: 700,
   };
 }
 function dangerBtn(): React.CSSProperties {
