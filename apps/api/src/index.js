@@ -95,16 +95,17 @@ function requireAdmin(req, res, next) {
 }
 
 async function sendOtpEmail(otp) {
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
+  const { SMTP_HOST, SMTP_HOST_IP, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) throw new Error("Email service is not configured.");
   const transporter = nodemailer.createTransport({
-    host: SMTP_HOST,
+    host: SMTP_HOST_IP || SMTP_HOST,
     port: Number(SMTP_PORT || 587),
     secure: Number(SMTP_PORT) === 465,
     family: 4,
     connectionTimeout: 15000,
     greetingTimeout: 10000,
     socketTimeout: 30000,
+    tls: { servername: SMTP_HOST },
     auth: { user: SMTP_USER, pass: SMTP_PASS },
   });
   await transporter.sendMail({
