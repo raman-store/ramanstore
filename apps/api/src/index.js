@@ -101,6 +101,10 @@ async function sendOtpEmail(otp) {
     host: SMTP_HOST,
     port: Number(SMTP_PORT || 587),
     secure: Number(SMTP_PORT) === 465,
+    family: 4,
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
+    socketTimeout: 30000,
     auth: { user: SMTP_USER, pass: SMTP_PASS },
   });
   await transporter.sendMail({
