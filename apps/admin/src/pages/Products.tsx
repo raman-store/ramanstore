@@ -35,6 +35,7 @@ export default function Products() {
     try {
       const res = await fetch(`${API_BASE}/admin/products`, {
         method: "GET",
+        credentials: "include",
         headers: { Accept: "application/json" },
       });
 
@@ -60,6 +61,7 @@ export default function Products() {
     try {
       const res = await fetch(`${API_BASE}/admin/products/${id}`, {
         method: "DELETE",
+        credentials: "include",
         headers: { Accept: "application/json" },
       });
 

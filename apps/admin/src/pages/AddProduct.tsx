@@ -37,7 +37,7 @@ export default function AddProduct() {
       Object.entries(form).forEach(([key, value]) => body.append(key, String(value)));
       body.append("mediaUrls", "[]");
       files.forEach((file) => body.append("mediaFiles", file));
-      const response = await fetch(`${API_BASE}/admin/products`, { method: "POST", body });
+      const response = await fetch(`${API_BASE}/admin/products`, { method: "POST", credentials: "include", body });
       if (!response.ok) throw new Error((await response.json()).message || "Product save nahi ho saka.");
       navigate("/products");
     } catch (error) {

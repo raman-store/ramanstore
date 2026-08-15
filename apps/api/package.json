@@ -3,12 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/index.js",
-    "start": "node src/index.js"
+    "dev": "node --env-file-if-exists=.env.local --watch src/index.js",
+    "start": "node --env-file-if-exists=.env.local src/index.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.19.2",
-    "multer": "^2.0.2"
+    "multer": "^2.0.2",
+    "nodemailer": "^9.0.5"
   }
 }

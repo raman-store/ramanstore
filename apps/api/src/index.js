@@ -4,6 +4,8 @@ import multer from "multer";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import crypto from "crypto";
+import nodemailer from "nodemailer";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -12,6 +14,12 @@ const apiDir = path.resolve(currentDir, "..");
 const dataDir = path.join(apiDir, "data");
 const dataFile = path.join(dataDir, "products.json");
 const uploadsDir = path.join(apiDir, "uploads");
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "info@ramanstore.com").trim().toLowerCase();
+const OTP_TTL_MS = 10 * 60 * 1000;
+const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const OTP_RESEND_MS = 60 * 1000;
+const otpChallenges = new Map();
+const sessions = new Map();
 
 const seedProducts = [
   { id: "1", slug: "emerald-glow-earrings", title: "Emerald Glow Earrings", price: 299, mrp: 399, category: "artificial-jewellery", subcategory: "earrings", audience: "women", image: "https://picsum.photos/seed/earrings1/800/800", description: "Elegant emerald-finish earrings for festive and everyday styling.", stock: 20, isFeatured: true },
@@ -49,10 +57,60 @@ app.use(cors({
       ? cb(null, true)
       : cb(new Error(`CORS blocked for origin: ${origin}`));
   },
+  credentials: true,
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static(uploadsDir));
+
+function hash(value) {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+function readCookies(req) {
+  return Object.fromEntries(String(req.headers.cookie || "").split(";").map((part) => part.trim().split(/=(.*)/s)).filter(([key]) => key).map(([key, value]) => [key, decodeURIComponent(value || "")]));
+}
+
+function sessionCookie(token, maxAge = SESSION_TTL_MS) {
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  return `raman_admin_session=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${Math.floor(maxAge / 1000)}${secure}`;
+}
+
+function getSession(req) {
+  const token = readCookies(req).raman_admin_session;
+  if (!token) return null;
+  const session = sessions.get(hash(token));
+  if (!session || session.expiresAt <= Date.now()) {
+    if (session) sessions.delete(hash(token));
+    return null;
+  }
+  return session;
+}
+
+function requireAdmin(req, res, next) {
+  const session = getSession(req);
+  if (!session || session.email !== ADMIN_EMAIL) return res.status(401).json({ message: "Login required." });
+  req.admin = session;
+  next();
+}
+
+async function sendOtpEmail(otp) {
+  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
+  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) throw new Error("Email service is not configured.");
+  const transporter = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: Number(SMTP_PORT || 587),
+    secure: Number(SMTP_PORT) === 465,
+    auth: { user: SMTP_USER, pass: SMTP_PASS },
+  });
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM || `Raman Store Admin <${SMTP_USER}>`,
+    to: ADMIN_EMAIL,
+    subject: "Raman Store Admin login OTP",
+    text: `Your Raman Store Admin login OTP is ${otp}. It expires in 10 minutes. If you did not request this, ignore this email.`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:480px"><h2>Raman Store Admin</h2><p>Your login OTP is:</p><div style="font-size:32px;font-weight:700;letter-spacing:8px;padding:16px;background:#f3f5f2;text-align:center">${otp}</div><p>This code expires in 10 minutes. Do not share it with anyone.</p></div>`,
+  });
+}
 
 const upload = multer({
   storage: multer.diskStorage({
@@ -122,6 +180,68 @@ app.get("/products/:slug", (req, res) => {
   if (!item) return res.status(404).json({ message: "Product not found." });
   res.json({ item });
 });
+
+app.post("/admin/auth/request-otp", async (req, res) => {
+  const email = String(req.body.email || "").trim().toLowerCase();
+  if (email !== ADMIN_EMAIL) return res.status(403).json({ message: "This email is not authorised for admin access." });
+  const key = `${email}:${req.ip}`;
+  const existing = otpChallenges.get(key);
+  if (existing?.lastSentAt > Date.now() - OTP_RESEND_MS) {
+    return res.status(429).json({ message: "Please wait 60 seconds before requesting another OTP." });
+  }
+  const otp = String(crypto.randomInt(100000, 1000000));
+  const salt = crypto.randomBytes(16).toString("hex");
+  otpChallenges.set(key, { email, otpHash: hash(`${salt}:${otp}`), salt, expiresAt: Date.now() + OTP_TTL_MS, lastSentAt: Date.now(), attempts: 0 });
+  try {
+    await sendOtpEmail(otp);
+    res.json({ ok: true, message: "OTP sent to your admin email." });
+  } catch (error) {
+    otpChallenges.delete(key);
+    console.error("OTP email failed", error);
+    res.status(503).json({ message: "OTP email service is not configured or unavailable." });
+  }
+});
+
+app.post("/admin/auth/verify-otp", (req, res) => {
+  const email = String(req.body.email || "").trim().toLowerCase();
+  const otp = String(req.body.otp || "").trim();
+  const key = `${email}:${req.ip}`;
+  const challenge = otpChallenges.get(key);
+  if (email !== ADMIN_EMAIL || !challenge || challenge.expiresAt <= Date.now()) {
+    if (challenge) otpChallenges.delete(key);
+    return res.status(400).json({ message: "OTP expired or invalid. Request a new OTP." });
+  }
+  challenge.attempts += 1;
+  if (challenge.attempts > 5) {
+    otpChallenges.delete(key);
+    return res.status(429).json({ message: "Too many attempts. Request a new OTP." });
+  }
+  const supplied = Buffer.from(hash(`${challenge.salt}:${otp}`));
+  const expected = Buffer.from(challenge.otpHash);
+  if (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) {
+    return res.status(400).json({ message: "Incorrect OTP." });
+  }
+  otpChallenges.delete(key);
+  const token = crypto.randomBytes(32).toString("base64url");
+  sessions.set(hash(token), { email, expiresAt: Date.now() + SESSION_TTL_MS });
+  res.setHeader("Set-Cookie", sessionCookie(token));
+  res.json({ ok: true, email });
+});
+
+app.get("/admin/auth/session", (req, res) => {
+  const session = getSession(req);
+  if (!session) return res.status(401).json({ authenticated: false });
+  res.json({ authenticated: true, email: session.email });
+});
+
+app.post("/admin/auth/logout", (req, res) => {
+  const token = readCookies(req).raman_admin_session;
+  if (token) sessions.delete(hash(token));
+  res.setHeader("Set-Cookie", sessionCookie("", 0));
+  res.json({ ok: true });
+});
+
+app.use("/admin/products", requireAdmin);
 
 app.get("/admin/products", (_req, res) => {
   const items = readProducts();
