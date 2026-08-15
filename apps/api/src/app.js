@@ -186,7 +186,7 @@ app.get("/products/:slug", (req, res) => {
   res.json({ item });
 });
 
-app.post("/admin/auth/request-otp", (req, res) => {
+app.post("/admin/auth/request-otp", async (req, res) => {
   const email = String(req.body.email || "").trim().toLowerCase();
   if (email !== ADMIN_EMAIL) return res.status(403).json({ message: "This email is not authorised for admin access." });
   const key = `${email}:${req.ip}`;
@@ -197,11 +197,15 @@ app.post("/admin/auth/request-otp", (req, res) => {
   const otp = String(crypto.randomInt(100000, 1000000));
   const salt = crypto.randomBytes(16).toString("hex");
   otpChallenges.set(key, { email, otpHash: hash(`${salt}:${otp}`), salt, expiresAt: Date.now() + OTP_TTL_MS, lastSentAt: Date.now(), attempts: 0 });
-  res.status(202).json({ ok: true, message: "OTP delivery started." });
-  sendOtpEmail(otp).catch((error) => {
+  try {
+    await sendOtpEmail(otp);
+    console.info("OTP email accepted by SMTP", { email });
+    res.json({ ok: true, message: "OTP email sent." });
+  } catch (error) {
     otpChallenges.delete(key);
     console.error("OTP email failed", error);
-  });
+    res.status(503).json({ message: "OTP email could not be sent. Please try again." });
+  }
 });
 
 app.post("/admin/auth/verify-otp", (req, res) => {
