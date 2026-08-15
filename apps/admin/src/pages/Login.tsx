@@ -10,13 +10,13 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
   const [message, setMessage] = useState("");
 
   async function requestOtp() {
-    setLoading(true); setMessage("");
+    setLoading(true); setMessage(""); setStep("otp");
     try {
       const response = await fetch(`${API_BASE}/admin/auth/request-otp`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: ADMIN_EMAIL }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "OTP send nahi ho saka.");
-      setStep("otp"); setMessage("OTP email par bhej diya gaya hai.");
-    } catch (error) { setMessage(error instanceof Error ? error.message : "OTP send nahi ho saka."); }
+      setMessage("OTP email par bheja ja raha hai.");
+    } catch (error) { setStep("email"); setMessage(error instanceof Error ? error.message : "OTP send nahi ho saka."); }
     finally { setLoading(false); }
   }
 
