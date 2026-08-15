@@ -3,8 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --env-file-if-exists=.env.local --watch src/index.js",
-    "start": "node --env-file-if-exists=.env.local src/index.js"
+    "dev": "node --env-file-if-exists=.env.local --watch src/app.js",
+    "start": "node --env-file-if-exists=.env.local src/app.js",
+    "bundle:hostinger": "esbuild src/app.js --bundle --minify --platform=node --format=esm --banner:js=\"import { createRequire } from 'module'; const require = createRequire(import.meta.url);\" --outfile=src/index.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
