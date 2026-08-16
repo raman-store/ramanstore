@@ -13,6 +13,7 @@ const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const apiDir = path.resolve(currentDir, "..");
 const dataDir = path.join(apiDir, "data");
 const dataFile = path.join(dataDir, "products.json");
+const slidersFile = path.join(dataDir, "sliders.json");
 const uploadsDir = path.join(apiDir, "uploads");
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "info@ramanstore.com").trim().toLowerCase();
 const OTP_TTL_MS = 10 * 60 * 1000;
@@ -31,6 +32,7 @@ const seedProducts = [
 fs.mkdirSync(dataDir, { recursive: true });
 fs.mkdirSync(uploadsDir, { recursive: true });
 if (!fs.existsSync(dataFile)) fs.writeFileSync(dataFile, JSON.stringify(seedProducts, null, 2));
+if (!fs.existsSync(slidersFile)) fs.writeFileSync(slidersFile, "[]");
 
 function readProducts() {
   try {
@@ -43,6 +45,15 @@ function readProducts() {
 
 function saveProducts(products) {
   fs.writeFileSync(dataFile, JSON.stringify(products, null, 2));
+}
+
+function readSliders() {
+  try { return JSON.parse(fs.readFileSync(slidersFile, "utf8")); }
+  catch (error) { console.error("Could not read slider database", error); return []; }
+}
+
+function saveSliders(sliders) {
+  fs.writeFileSync(slidersFile, JSON.stringify(sliders, null, 2));
 }
 
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "https://ramanstore.com,https://www.ramanstore.com,https://admin.ramanstore.com,http://localhost:3000,http://127.0.0.1:3000,http://localhost:5174,http://127.0.0.1:5174")
@@ -186,6 +197,11 @@ app.get("/products/:slug", (req, res) => {
   res.json({ item });
 });
 
+app.get("/sliders", (_req, res) => {
+  const items = readSliders().filter((item) => item.isActive !== false);
+  res.json({ items, total: items.length });
+});
+
 app.post("/admin/auth/request-otp", async (req, res) => {
   const email = String(req.body.email || "").trim().toLowerCase();
   if (email !== ADMIN_EMAIL) return res.status(403).json({ message: "This email is not authorised for admin access." });
@@ -244,6 +260,44 @@ app.post("/admin/auth/logout", (req, res) => {
   const token = readCookies(req).raman_admin_session;
   if (token) sessions.delete(hash(token));
   res.setHeader("Set-Cookie", sessionCookie("", 0));
+  res.json({ ok: true });
+});
+
+app.use("/admin/sliders", requireAdmin);
+
+app.get("/admin/sliders", (_req, res) => {
+  const items = readSliders();
+  res.json({ items, total: items.length });
+});
+
+app.post("/admin/sliders", upload.single("mediaFile"), (req, res) => {
+  if (!req.file) return res.status(400).json({ message: "Please upload an image or video." });
+  const sliders = readSliders();
+  const item = {
+    id: String(Date.now()),
+    label: String(req.body.label || "Featured collection").trim(),
+    title: String(req.body.title || "").trim(),
+    note: String(req.body.note || "").trim(),
+    buttonText: String(req.body.buttonText || "Shop collection").trim(),
+    href: String(req.body.href || "/shop").trim(),
+    media: {
+      type: req.file.mimetype.startsWith("video/") ? "video" : "image",
+      url: `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`,
+    },
+    isActive: String(req.body.isActive ?? "true") === "true",
+    createdAt: new Date().toISOString(),
+  };
+  if (!item.title) return res.status(400).json({ message: "A slide title is required." });
+  sliders.push(item);
+  saveSliders(sliders);
+  res.status(201).json({ ok: true, item });
+});
+
+app.delete("/admin/sliders/:id", (req, res) => {
+  const sliders = readSliders();
+  const nextSliders = sliders.filter((item) => String(item.id) !== String(req.params.id));
+  if (nextSliders.length === sliders.length) return res.status(404).json({ message: "Slide not found." });
+  saveSliders(nextSliders);
   res.json({ ok: true });
 });
 
