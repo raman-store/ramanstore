@@ -1,5 +1,5 @@
 const LOCAL_API = "http://localhost:4000";
-const PRODUCTION_API = "https://ramanstore-api.onrender.com";
+const PRODUCTION_API = "https://api.ramanstore.com";
 
 export function getApiBase() {
   const configured = String(import.meta.env.VITE_API_BASE || "").replace(/\/$/, "");
