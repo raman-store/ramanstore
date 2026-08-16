@@ -6,6 +6,7 @@ import Products from "./pages/Products";
 import AddProduct from "./pages/AddProduct";
 import EditProduct from "./pages/editProduct";
 import Login from "./pages/Login";
+import Sliders from "./pages/Sliders";
 
 const API_BASE = (import.meta.env.VITE_API_BASE || "http://localhost:4000").replace(/\/$/, "");
 
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="/products" element={<Products />} />
         <Route path="/products/new" element={<AddProduct />} />
         <Route path="/products/:id/edit" element={<EditProduct />} />
+        <Route path="/sliders" element={<Sliders />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AdminShell>
