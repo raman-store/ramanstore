@@ -6,6 +6,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
+import pg from "pg";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -23,6 +24,7 @@ const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const OTP_RESEND_MS = 60 * 1000;
 const otpChallenges = new Map();
 const sessions = new Map();
+let dbPool = null;
 
 const seedProducts = [
   { id: "1", slug: "emerald-glow-earrings", title: "Emerald Glow Earrings", price: 299, mrp: 399, category: "artificial-jewellery", subcategory: "earrings", audience: "women", image: "https://picsum.photos/seed/earrings1/800/800", description: "Elegant emerald-finish earrings for festive and everyday styling.", stock: 20, isFeatured: true },
@@ -48,6 +50,7 @@ function readProducts() {
 
 function saveProducts(products) {
   fs.writeFileSync(dataFile, JSON.stringify(products, null, 2));
+  persistDocument("products", products);
 }
 
 function readSliders() {
@@ -57,6 +60,7 @@ function readSliders() {
 
 function saveSliders(sliders) {
   fs.writeFileSync(slidersFile, JSON.stringify(sliders, null, 2));
+  persistDocument("sliders", sliders);
 }
 
 function readOrders() {
@@ -64,7 +68,35 @@ function readOrders() {
   catch (error) { console.error("Could not read orders database", error); return []; }
 }
 
-function saveOrders(orders) { fs.writeFileSync(ordersFile, JSON.stringify(orders, null, 2)); }
+function saveOrders(orders) { fs.writeFileSync(ordersFile, JSON.stringify(orders, null, 2)); persistDocument("orders", orders); }
+
+async function persistDocument(name, value) {
+  if (!dbPool) return;
+  try { await dbPool.query("INSERT INTO store_documents(name, value, updated_at) VALUES($1,$2,NOW()) ON CONFLICT(name) DO UPDATE SET value=EXCLUDED.value, updated_at=NOW()", [name, JSON.stringify(value)]); }
+  catch (error) { console.error(`Could not persist ${name}`, error); }
+}
+
+async function initDatabase() {
+  if (!process.env.DATABASE_URL) return;
+  dbPool = new pg.Pool({ connectionString: process.env.DATABASE_URL, ssl: process.env.DATABASE_URL.includes("localhost") ? false : { rejectUnauthorized: false } });
+  await dbPool.query("CREATE TABLE IF NOT EXISTS store_documents(name TEXT PRIMARY KEY, value JSONB NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW())");
+  await dbPool.query("CREATE TABLE IF NOT EXISTS media_assets(id TEXT PRIMARY KEY, mime_type TEXT NOT NULL, data BYTEA NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())");
+  for (const [name, file, fallback] of [["products", dataFile, seedProducts], ["sliders", slidersFile, []], ["orders", ordersFile, []]]) {
+    const result = await dbPool.query("SELECT value FROM store_documents WHERE name=$1", [name]);
+    if (result.rows.length) fs.writeFileSync(file, JSON.stringify(result.rows[0].value, null, 2));
+    else await persistDocument(name, fallback);
+  }
+  console.info("Persistent PostgreSQL storage connected.");
+}
+
+async function prepareUploadedFiles(req) {
+  const files = req.files || (req.file ? [req.file] : []);
+  for (const file of files) {
+    file.filename = `${Date.now()}-${crypto.randomBytes(5).toString("hex")}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, "-")}`;
+    if (dbPool) await dbPool.query("INSERT INTO media_assets(id,mime_type,data) VALUES($1,$2,$3)", [file.filename, file.mimetype, file.buffer]);
+    else fs.writeFileSync(path.join(uploadsDir, file.filename), file.buffer);
+  }
+}
 
 function validateCustomer(customer) {
   if (!customer.name || customer.name.length < 2) return "Please enter the customer’s full name.";
@@ -97,7 +129,12 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use("/uploads", express.static(uploadsDir));
+app.get("/uploads/:id", async (req, res) => {
+  if (dbPool) { const result = await dbPool.query("SELECT mime_type,data FROM media_assets WHERE id=$1", [req.params.id]); if (result.rows.length) { res.setHeader("Content-Type", result.rows[0].mime_type); res.setHeader("Cache-Control", "public, max-age=31536000, immutable"); return res.send(result.rows[0].data); } }
+  const localFile = path.join(uploadsDir, path.basename(req.params.id));
+  if (fs.existsSync(localFile)) return res.sendFile(localFile);
+  res.status(404).end();
+});
 
 function hash(value) {
   return crypto.createHash("sha256").update(value).digest("hex");
@@ -154,10 +191,7 @@ async function sendOtpEmail(otp) {
 }
 
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, uploadsDir),
-    filename: (_req, file, cb) => cb(null, `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, "-")}`),
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024, files: 10 },
   fileFilter: (_req, file, cb) => cb(null, file.mimetype.startsWith("image/") || file.mimetype.startsWith("video/")),
 });
@@ -344,8 +378,9 @@ app.get("/admin/sliders", (_req, res) => {
   res.json({ items, total: items.length });
 });
 
-app.post("/admin/sliders", upload.single("mediaFile"), (req, res) => {
+app.post("/admin/sliders", upload.single("mediaFile"), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "Please upload an image or video." });
+  await prepareUploadedFiles(req);
   const sliders = readSliders();
   const item = {
     id: String(Date.now()),
@@ -398,7 +433,8 @@ app.get("/admin/products/:id", (req, res) => {
   res.json({ item });
 });
 
-app.post("/admin/products", upload.array("mediaFiles", 10), (req, res) => {
+app.post("/admin/products", upload.array("mediaFiles", 10), async (req, res) => {
+  await prepareUploadedFiles(req);
   const products = readProducts();
   const item = productFromRequest(req, { id: String(Date.now()) });
   const validationError = validateProduct(item, products);
@@ -408,7 +444,8 @@ app.post("/admin/products", upload.array("mediaFiles", 10), (req, res) => {
   res.status(201).json({ ok: true, item });
 });
 
-app.put("/admin/products/:id", upload.array("mediaFiles", 10), (req, res) => {
+app.put("/admin/products/:id", upload.array("mediaFiles", 10), async (req, res) => {
+  await prepareUploadedFiles(req);
   const products = readProducts();
   const index = products.findIndex((p) => String(p.id) === String(req.params.id));
   if (index < 0) return res.status(404).json({ message: "Product not found." });
@@ -433,4 +470,4 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ ok: false, message: err.message || "Server error" });
 });
 
-app.listen(PORT, () => console.log(`RamanStore API running on http://localhost:${PORT}`));
+initDatabase().then(() => app.listen(PORT, () => console.log(`RamanStore API running on http://localhost:${PORT}`))).catch((error) => { console.error("Database initialization failed", error); process.exit(1); });
