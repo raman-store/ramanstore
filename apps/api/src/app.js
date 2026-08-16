@@ -11,11 +11,12 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const apiDir = path.resolve(currentDir, "..");
-const dataDir = path.join(apiDir, "data");
+const storageDir = process.env.STORAGE_DIR ? path.resolve(process.env.STORAGE_DIR) : apiDir;
+const dataDir = path.join(storageDir, "data");
 const dataFile = path.join(dataDir, "products.json");
 const slidersFile = path.join(dataDir, "sliders.json");
 const ordersFile = path.join(dataDir, "orders.json");
-const uploadsDir = path.join(apiDir, "uploads");
+const uploadsDir = path.join(storageDir, "uploads");
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "info@ramanstore.com").trim().toLowerCase();
 const OTP_TTL_MS = 10 * 60 * 1000;
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
@@ -201,6 +202,7 @@ app.get("/", (_req, res) => res.send("RamanStore API is running."));
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
 app.get(["/products", "/shop"], (req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
   let items = readProducts();
   const { category, subcategory, audience, featured, newArrival, q } = req.query;
   if (category) items = items.filter((p) => p.category === String(category));
@@ -216,6 +218,7 @@ app.get(["/products", "/shop"], (req, res) => {
 });
 
 app.get("/products/:slug", (req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
   const item = readProducts().find((p) => p.slug === req.params.slug);
   if (!item) return res.status(404).json({ message: "Product not found." });
   res.json({ item });
