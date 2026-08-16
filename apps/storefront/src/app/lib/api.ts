@@ -1,4 +1,6 @@
-export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000").replace(/\/$/, "");
+const HOSTINGER_API = "https://api.ramanstore.com";
+const configuredApi = process.env.NEXT_PUBLIC_API_BASE || process.env.NEXT_PUBLIC_API_URL || "";
+export const API_BASE = (configuredApi.includes("onrender.com") ? HOSTINGER_API : configuredApi || (process.env.NODE_ENV === "production" ? HOSTINGER_API : "http://localhost:4000")).replace(/\/$/, "");
 
 export type ProductMedia = { type: "image" | "video"; url: string };
 export type Product = { id: string; title: string; slug: string; price: number; mrp?: number; category: string; subcategory?: string; audience?: string; image?: string; media?: ProductMedia[]; description?: string; stock: number; isFeatured?: boolean; isNewArrival?: boolean; createdAt?: string };
