@@ -27,12 +27,13 @@ const otpChallenges = new Map();
 let dbPool = null;
 let databaseDriver = null;
 
-const seedProducts = [
-  { id: "1", slug: "emerald-glow-earrings", title: "Emerald Glow Earrings", price: 299, mrp: 399, category: "artificial-jewellery", subcategory: "earrings", audience: "women", image: "https://picsum.photos/seed/earrings1/800/800", description: "Elegant emerald-finish earrings for festive and everyday styling.", stock: 20, isFeatured: true },
-  { id: "2", slug: "floral-kurti-set", title: "Floral Kurti Set", price: 899, mrp: 1199, category: "female-wear", subcategory: "kurti-sets", audience: "women", image: "https://picsum.photos/seed/kurti1/800/800", description: "Comfortable printed kurti set with a flattering everyday fit.", stock: 12, isFeatured: true },
-  { id: "3", slug: "kids-party-dress", title: "Kids Party Dress", price: 699, mrp: 899, category: "kids-wear", subcategory: "girls-dresses", audience: "kids", image: "https://picsum.photos/seed/kidsdress1/800/800", description: "Soft and festive party dress designed for all-day comfort.", stock: 8, isFeatured: true },
-  { id: "4", slug: "champagne-pearl-necklace", title: "Champagne Pearl Necklace", price: 499, mrp: 649, category: "artificial-jewellery", subcategory: "necklaces", audience: "women", image: "https://picsum.photos/seed/necklace1/800/800", description: "Classic pearl necklace with a premium champagne finish.", stock: 15, isFeatured: false },
-];
+const seedProducts = [];
+const legacyDemoProductSlugs = new Set([
+  "emerald-glow-earrings",
+  "floral-kurti-set",
+  "kids-party-dress",
+  "champagne-pearl-necklace",
+]);
 
 fs.mkdirSync(dataDir, { recursive: true });
 fs.mkdirSync(uploadsDir, { recursive: true });
@@ -95,7 +96,15 @@ async function initDatabase() {
   for (const [name, file, fallback] of [["products", dataFile, seedProducts], ["sliders", slidersFile, []], ["orders", ordersFile, []]]) {
     const result = databaseDriver === "mysql" ? await dbPool.execute("SELECT value FROM store_documents WHERE name=?", [name]) : await dbPool.query("SELECT value FROM store_documents WHERE name=$1", [name]);
     const rows = databaseDriver === "mysql" ? result[0] : result.rows;
-    if (rows.length) fs.writeFileSync(file, JSON.stringify(typeof rows[0].value === "string" ? JSON.parse(rows[0].value) : rows[0].value, null, 2));
+    if (rows.length) {
+      let storedValue = typeof rows[0].value === "string" ? JSON.parse(rows[0].value) : rows[0].value;
+      const isLegacyDemoCatalogue = name === "products" && Array.isArray(storedValue) && storedValue.length === legacyDemoProductSlugs.size && storedValue.every((product) => legacyDemoProductSlugs.has(product.slug));
+      if (isLegacyDemoCatalogue) {
+        storedValue = [];
+        await persistDocument(name, storedValue);
+      }
+      fs.writeFileSync(file, JSON.stringify(storedValue, null, 2));
+    }
     else await persistDocument(name, fallback);
   }
   console.info(`Persistent ${databaseDriver} storage connected.`);
