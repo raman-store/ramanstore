@@ -233,7 +233,7 @@ function validateProduct(product, products, currentId) {
 }
 
 app.get("/", (_req, res) => res.send("RamanStore API is running."));
-app.get("/health", (_req, res) => res.json({ ok: true }));
+app.get("/health", (_req, res) => res.json({ ok: true, storage: dbPool ? "postgresql" : "filesystem" }));
 
 app.get(["/products", "/shop"], (req, res) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
