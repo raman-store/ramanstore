@@ -8,6 +8,7 @@ import EditProduct from "./pages/editProduct";
 import Login from "./pages/Login";
 import Sliders from "./pages/Sliders";
 import { API_BASE } from "./lib/apiBase";
+import Orders from "./pages/Orders";
 
 export default function App() {
   const [auth, setAuth] = useState<"loading" | "yes" | "no">("loading");
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="/products/new" element={<AddProduct />} />
         <Route path="/products/:id/edit" element={<EditProduct />} />
         <Route path="/sliders" element={<Sliders />} />
+        <Route path="/orders" element={<Orders />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AdminShell>

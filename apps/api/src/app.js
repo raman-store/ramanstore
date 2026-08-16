@@ -14,6 +14,7 @@ const apiDir = path.resolve(currentDir, "..");
 const dataDir = path.join(apiDir, "data");
 const dataFile = path.join(dataDir, "products.json");
 const slidersFile = path.join(dataDir, "sliders.json");
+const ordersFile = path.join(dataDir, "orders.json");
 const uploadsDir = path.join(apiDir, "uploads");
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "info@ramanstore.com").trim().toLowerCase();
 const OTP_TTL_MS = 10 * 60 * 1000;
@@ -33,6 +34,7 @@ fs.mkdirSync(dataDir, { recursive: true });
 fs.mkdirSync(uploadsDir, { recursive: true });
 if (!fs.existsSync(dataFile)) fs.writeFileSync(dataFile, JSON.stringify(seedProducts, null, 2));
 if (!fs.existsSync(slidersFile)) fs.writeFileSync(slidersFile, "[]");
+if (!fs.existsSync(ordersFile)) fs.writeFileSync(ordersFile, "[]");
 
 function readProducts() {
   try {
@@ -54,6 +56,28 @@ function readSliders() {
 
 function saveSliders(sliders) {
   fs.writeFileSync(slidersFile, JSON.stringify(sliders, null, 2));
+}
+
+function readOrders() {
+  try { return JSON.parse(fs.readFileSync(ordersFile, "utf8")); }
+  catch (error) { console.error("Could not read orders database", error); return []; }
+}
+
+function saveOrders(orders) { fs.writeFileSync(ordersFile, JSON.stringify(orders, null, 2)); }
+
+function validateCustomer(customer) {
+  if (!customer.name || customer.name.length < 2) return "Please enter the customer’s full name.";
+  if (!/^\d{10}$/.test(customer.mobile)) return "Please enter a valid 10-digit mobile number.";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email)) return "Please enter a valid email address.";
+  if (!customer.address || customer.address.length < 10) return "Please enter the complete delivery address.";
+  if (!/^\d{6}$/.test(customer.pincode)) return "Please enter a valid 6-digit PIN code.";
+  return "";
+}
+
+function reduceProductStock(productId, quantity) {
+  const products = readProducts();
+  const product = products.find((item) => String(item.id) === String(productId));
+  if (product) { product.stock = Math.max(0, Number(product.stock) - quantity); saveProducts(products); }
 }
 
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "https://ramanstore.com,https://www.ramanstore.com,https://admin.ramanstore.com,http://localhost:3000,http://127.0.0.1:3000,http://localhost:5174,http://127.0.0.1:5174")
@@ -202,6 +226,53 @@ app.get("/sliders", (_req, res) => {
   res.json({ items, total: items.length });
 });
 
+app.post("/orders", async (req, res) => {
+  const products = readProducts();
+  const product = products.find((item) => String(item.id) === String(req.body.productId));
+  const quantity = Math.max(1, Math.min(10, Number(req.body.quantity) || 1));
+  if (!product) return res.status(404).json({ message: "Product not found." });
+  if (Number(product.stock) < quantity) return res.status(400).json({ message: "The requested quantity is not available." });
+  const customer = {
+    name: String(req.body.name || "").trim(), mobile: String(req.body.mobile || "").replace(/\D/g, ""),
+    email: String(req.body.email || "").trim().toLowerCase(), address: String(req.body.address || "").trim(),
+    pincode: String(req.body.pincode || "").replace(/\D/g, ""),
+  };
+  const validationError = validateCustomer(customer);
+  if (validationError) return res.status(400).json({ message: validationError });
+  const paymentMethod = req.body.paymentMethod === "razorpay" ? "razorpay" : "cod";
+  const order = {
+    id: `RS${Date.now()}`, productId: String(product.id), productTitle: product.title, quantity,
+    unitPrice: Number(product.price), total: Number(product.price) * quantity, customer, paymentMethod,
+    paymentStatus: paymentMethod === "cod" ? "cash-on-delivery" : "pending", orderStatus: "placed",
+    createdAt: new Date().toISOString(),
+  };
+  if (paymentMethod === "cod") {
+    const orders = readOrders(); orders.unshift(order); saveOrders(orders); reduceProductStock(product.id, quantity);
+    return res.status(201).json({ ok: true, orderId: order.id, paymentMethod });
+  }
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  if (!keyId || !keySecret) return res.status(503).json({ message: "Online payment is temporarily unavailable. Please select Cash on Delivery." });
+  try {
+    const response = await fetch("https://api.razorpay.com/v1/orders", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}` }, body: JSON.stringify({ amount: Math.round(order.total * 100), currency: "INR", receipt: order.id, notes: { product: product.title } }) });
+    const razorpayOrder = await response.json();
+    if (!response.ok) throw new Error(razorpayOrder.error?.description || "Razorpay order creation failed.");
+    order.razorpayOrderId = razorpayOrder.id;
+    const orders = readOrders(); orders.unshift(order); saveOrders(orders);
+    res.status(201).json({ ok: true, orderId: order.id, paymentMethod, razorpayOrderId: razorpayOrder.id, amount: razorpayOrder.amount, currency: "INR", keyId });
+  } catch (error) { res.status(502).json({ message: error.message || "Online payment could not be initiated." }); }
+});
+
+app.post("/orders/verify-payment", (req, res) => {
+  const { orderId, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+  const expected = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET || "").update(`${razorpay_order_id}|${razorpay_payment_id}`).digest("hex");
+  if (!razorpay_signature || expected !== razorpay_signature) return res.status(400).json({ message: "Payment verification failed." });
+  const orders = readOrders(); const order = orders.find((item) => item.id === orderId && item.razorpayOrderId === razorpay_order_id);
+  if (!order) return res.status(404).json({ message: "Order not found." });
+  if (order.paymentStatus !== "paid") { order.paymentStatus = "paid"; order.razorpayPaymentId = razorpay_payment_id; order.paidAt = new Date().toISOString(); saveOrders(orders); reduceProductStock(order.productId, order.quantity); }
+  res.json({ ok: true, orderId: order.id });
+});
+
 app.post("/admin/auth/request-otp", async (req, res) => {
   const email = String(req.body.email || "").trim().toLowerCase();
   if (email !== ADMIN_EMAIL) return res.status(403).json({ message: "This email is not authorised for admin access." });
@@ -299,6 +370,16 @@ app.delete("/admin/sliders/:id", (req, res) => {
   if (nextSliders.length === sliders.length) return res.status(404).json({ message: "Slide not found." });
   saveSliders(nextSliders);
   res.json({ ok: true });
+});
+
+app.use("/admin/orders", requireAdmin);
+app.get("/admin/orders", (_req, res) => { const items = readOrders(); res.json({ items, total: items.length }); });
+app.patch("/admin/orders/:id", (req, res) => {
+  const allowed = ["placed", "confirmed", "packed", "shipped", "delivered", "cancelled"];
+  if (!allowed.includes(req.body.orderStatus)) return res.status(400).json({ message: "Invalid order status." });
+  const orders = readOrders(); const order = orders.find((item) => item.id === req.params.id);
+  if (!order) return res.status(404).json({ message: "Order not found." });
+  order.orderStatus = req.body.orderStatus; order.updatedAt = new Date().toISOString(); saveOrders(orders); res.json({ ok: true, item: order });
 });
 
 app.use("/admin/products", requireAdmin);
