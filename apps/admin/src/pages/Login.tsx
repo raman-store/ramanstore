@@ -14,9 +14,9 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
     try {
       const response = await fetch(`${API_BASE}/admin/auth/request-otp`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: ADMIN_EMAIL }) });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "OTP send nahi ho saka.");
-      setMessage("OTP email par bheja ja raha hai.");
-    } catch (error) { setStep("email"); setMessage(error instanceof Error ? error.message : "OTP send nahi ho saka."); }
+      if (!response.ok) throw new Error(data.message || "The verification code could not be sent.");
+      setMessage("A verification code has been sent to the registered email address.");
+    } catch (error) { setStep("email"); setMessage(error instanceof Error ? error.message : "The verification code could not be sent."); }
     finally { setLoading(false); }
   }
 
@@ -25,17 +25,17 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
     try {
       const response = await fetch(`${API_BASE}/admin/auth/verify-otp`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: ADMIN_EMAIL, otp }) });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "OTP verify nahi hua.");
+      if (!response.ok) throw new Error(data.message || "The verification code could not be confirmed.");
       onLogin();
-    } catch (error) { setMessage(error instanceof Error ? error.message : "OTP verify nahi hua."); }
+    } catch (error) { setMessage(error instanceof Error ? error.message : "The verification code could not be confirmed."); }
     finally { setLoading(false); }
   }
 
   return <main className="loginPage"><section className="loginCard">
     <img src="/ramanstore-final-logo-v5.png" alt="Raman Store" className="loginLogo" />
     <span className="loginEyebrow">SECURE ADMIN ACCESS</span><h1>Raman Store Admin</h1>
-    {step === "email" ? <><p>Login OTP registered admin email par bheja jayega.</p><label>Admin email<input value={ADMIN_EMAIL} readOnly /></label><button className="loginPrimary" disabled={loading} onClick={requestOtp}>{loading ? "OTP bhej rahe hain…" : "Email OTP bhejein"}</button></> : <form onSubmit={verifyOtp}><p><strong>{ADMIN_EMAIL}</strong> par mila 6-digit OTP enter karein.</p><label>6-digit OTP<input className="otpInput" value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} autoFocus required /></label><button className="loginPrimary" disabled={loading || otp.length !== 6}>{loading ? "Verify ho raha hai…" : "Secure login"}</button><button className="loginLink" type="button" disabled={loading} onClick={() => { setStep("email"); setOtp(""); setMessage(""); }}>OTP dobara bhejein</button></form>}
-    {message && <div className={message.includes("bhej diya") ? "loginSuccess" : "errorMessage"}>{message}</div>}
-    <small className="loginSecurity">OTP 10 minutes mein expire hota hai. Ise kisi ke saath share na karein.</small>
+    {step === "email" ? <><p>A one-time verification code will be sent to the registered administrator email address.</p><label>Administrator email<input value={ADMIN_EMAIL} readOnly /></label><button className="loginPrimary" disabled={loading} onClick={requestOtp}>{loading ? "Sending code…" : "Send verification code"}</button></> : <form onSubmit={verifyOtp}><p>Enter the six-digit verification code sent to <strong>{ADMIN_EMAIL}</strong>.</p><label>Six-digit code<input className="otpInput" value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} autoFocus required /></label><button className="loginPrimary" disabled={loading || otp.length !== 6}>{loading ? "Verifying…" : "Secure login"}</button><button className="loginLink" type="button" disabled={loading} onClick={() => { setStep("email"); setOtp(""); setMessage(""); }}>Resend verification code</button></form>}
+    {message && <div className={message.includes("has been sent") ? "loginSuccess" : "errorMessage"}>{message}</div>}
+    <small className="loginSecurity">The verification code expires after 10 minutes. Do not share it with anyone.</small>
   </section></main>;
 }

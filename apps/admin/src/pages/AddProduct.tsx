@@ -38,23 +38,23 @@ export default function AddProduct() {
       body.append("mediaUrls", "[]");
       files.forEach((file) => body.append("mediaFiles", file));
       const response = await fetch(`${API_BASE}/admin/products`, { method: "POST", credentials: "include", body });
-      if (!response.ok) throw new Error((await response.json()).message || "Product save nahi ho saka.");
+      if (!response.ok) throw new Error((await response.json()).message || "The product could not be saved.");
       navigate("/products");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Product save nahi ho saka.");
+      setMessage(error instanceof Error ? error.message : "The product could not be saved.");
     } finally {
       setSaving(false);
     }
   }
 
   return <div className="adminPage mobileAddPage">
-    <div className="pageTitle"><div><h2>Naya product add karein</h2><p>Photo kheechiye, price bhariye aur seedha publish kijiye.</p></div></div>
+    <div className="pageTitle"><div><h2>Add a new product</h2><p>Upload product imagery, enter the pricing details and publish the listing.</p></div></div>
     <form className="adminForm easyProductForm" onSubmit={submit}>
       <section className="formSection mobileMediaFirst">
-        <div className="formSectionTitle"><span>1</span><div><strong>Product photos</strong><small>Pehli photo product ki cover photo hogi</small></div></div>
+        <div className="formSectionTitle"><span>1</span><div><strong>Product images</strong><small>The first image will be used as the product cover</small></div></div>
         <div className="mobilePhotoActions">
-          <button type="button" onClick={() => cameraInput.current?.click()}><span>📷</span><strong>Photo kheecho</strong><small>Camera kholein</small></button>
-          <button type="button" onClick={() => galleryInput.current?.click()}><span>▧</span><strong>Gallery se chunein</strong><small>Ek ya kai photos</small></button>
+          <button type="button" onClick={() => cameraInput.current?.click()}><span>📷</span><strong>Take a photo</strong><small>Open the camera</small></button>
+          <button type="button" onClick={() => galleryInput.current?.click()}><span>▧</span><strong>Choose from gallery</strong><small>Select one or more files</small></button>
         </div>
         <input ref={cameraInput} className="hiddenFileInput" type="file" accept="image/*" capture="environment" onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
         <input ref={galleryInput} className="hiddenFileInput" type="file" accept="image/*,video/*" multiple onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
@@ -63,24 +63,24 @@ export default function AddProduct() {
           <div className="mediaPreviewGrid mobilePreviewGrid">{previews.map((item, index) => <div key={item.url} className="mediaPreviewItem">
             {item.type.startsWith("video") ? <video src={item.url} /> : <img src={item.url} alt={item.name} />}
             {index === 0 && <b>Cover</b>}
-            <button type="button" aria-label={`${item.name} hataein`} onClick={() => setFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))}>×</button>
+            <button type="button" aria-label={`Remove ${item.name}`} onClick={() => setFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))}>×</button>
           </div>)}</div>
-        </> : <div className="photoTip">Achchi roshni mein product ki front photo lein. Aap 10 files tak add kar sakte hain.</div>}
+        </> : <div className="photoTip">Use good lighting and capture a clear front view of the product. You may add up to 10 files.</div>}
       </section>
 
-      <section className="formSection"><div className="formSectionTitle"><span>2</span><div><strong>Product details</strong><small>Customer ko kya dikhana hai</small></div></div>
-        <label>Product name<input value={form.title} placeholder="Jaise: Floral cotton kurti" onChange={(e) => { update("title", e.target.value); update("slug", slugify(e.target.value)); }} required /></label>
-        <div className="formGrid"><label>Category<select value={form.category} onChange={(e) => update("category", e.target.value)}>{categories.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}</select></label><label>Subcategory <small>(optional)</small><input value={form.subcategory} onChange={(e) => update("subcategory", e.target.value)} placeholder="Jaise: Kurtis" /></label></div>
-        <label>Description <small>(optional)</small><textarea rows={3} value={form.description} onChange={(e) => update("description", e.target.value)} placeholder="Kapda, colour, size aur doosri details…" /></label>
+      <section className="formSection"><div className="formSectionTitle"><span>2</span><div><strong>Product details</strong><small>Information displayed to customers</small></div></div>
+        <label>Product name<input value={form.title} placeholder="For example: Floral cotton kurti" onChange={(e) => { update("title", e.target.value); update("slug", slugify(e.target.value)); }} required /></label>
+        <div className="formGrid"><label>Category<select value={form.category} onChange={(e) => update("category", e.target.value)}>{categories.map((category) => <option key={category.value} value={category.value}>{category.label}</option>)}</select></label><label>Subcategory <small>(optional)</small><input value={form.subcategory} onChange={(e) => update("subcategory", e.target.value)} placeholder="For example: Kurtis" /></label></div>
+        <label>Description <small>(optional)</small><textarea rows={3} value={form.description} onChange={(e) => update("description", e.target.value)} placeholder="Include fabric, colour, size and other relevant details…" /></label>
       </section>
 
-      <section className="formSection"><div className="formSectionTitle"><span>3</span><div><strong>Price aur stock</strong><small>Product ki selling details</small></div></div>
+      <section className="formSection"><div className="formSectionTitle"><span>3</span><div><strong>Price and inventory</strong><small>Pricing and availability details</small></div></div>
         <div className="formGrid three"><label>Selling price (₹)<input inputMode="decimal" type="number" min="0" value={form.price} onChange={(e) => update("price", e.target.value)} required /></label><label>MRP (₹) <small>(optional)</small><input inputMode="decimal" type="number" min="0" value={form.mrp} onChange={(e) => update("mrp", e.target.value)} /></label><label>Available stock<input inputMode="numeric" type="number" min="0" value={form.stock} onChange={(e) => update("stock", e.target.value)} required /></label></div>
       </section>
 
-      <section className="publishOptions"><label className="checkLabel"><input type="checkbox" checked={form.isNewArrival} onChange={(e) => update("isNewArrival", e.target.checked)} /><span><strong>New Arrival</strong><small>“New” badge dikhayein</small></span></label><label className="checkLabel"><input type="checkbox" checked={form.isFeatured} onChange={(e) => update("isFeatured", e.target.checked)} /><span><strong>Homepage par dikhayein</strong><small>Featured section mein add karein</small></span></label></section>
+      <section className="publishOptions"><label className="checkLabel"><input type="checkbox" checked={form.isNewArrival} onChange={(e) => update("isNewArrival", e.target.checked)} /><span><strong>New arrival</strong><small>Display the “New” badge</small></span></label><label className="checkLabel"><input type="checkbox" checked={form.isFeatured} onChange={(e) => update("isFeatured", e.target.checked)} /><span><strong>Feature on homepage</strong><small>Include in the featured collection</small></span></label></section>
       {message && <div className="errorMessage">{message}</div>}
-      <div className="formActions mobilePublishBar"><button className="primaryButton" disabled={saving}>{saving ? "Product save ho raha hai…" : "Product publish karein"}</button><button type="button" onClick={() => navigate("/products")}>Cancel</button></div>
+      <div className="formActions mobilePublishBar"><button className="primaryButton" disabled={saving}>{saving ? "Saving product…" : "Publish product"}</button><button type="button" onClick={() => navigate("/products")}>Cancel</button></div>
     </form>
   </div>;
 }
