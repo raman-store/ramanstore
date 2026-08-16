@@ -7,6 +7,7 @@ import { fileURLToPath } from "url";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
 import pg from "pg";
+import mysql from "mysql2/promise";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -25,6 +26,7 @@ const OTP_RESEND_MS = 60 * 1000;
 const otpChallenges = new Map();
 const sessions = new Map();
 let dbPool = null;
+let databaseDriver = null;
 
 const seedProducts = [
   { id: "1", slug: "emerald-glow-earrings", title: "Emerald Glow Earrings", price: 299, mrp: 399, category: "artificial-jewellery", subcategory: "earrings", audience: "women", image: "https://picsum.photos/seed/earrings1/800/800", description: "Elegant emerald-finish earrings for festive and everyday styling.", stock: 20, isFeatured: true },
@@ -72,28 +74,40 @@ function saveOrders(orders) { fs.writeFileSync(ordersFile, JSON.stringify(orders
 
 async function persistDocument(name, value) {
   if (!dbPool) return;
-  try { await dbPool.query("INSERT INTO store_documents(name, value, updated_at) VALUES($1,$2,NOW()) ON CONFLICT(name) DO UPDATE SET value=EXCLUDED.value, updated_at=NOW()", [name, JSON.stringify(value)]); }
+  try {
+    if (databaseDriver === "mysql") await dbPool.execute("INSERT INTO store_documents(name, value, updated_at) VALUES(?,?,NOW()) ON DUPLICATE KEY UPDATE value=VALUES(value), updated_at=NOW()", [name, JSON.stringify(value)]);
+    else await dbPool.query("INSERT INTO store_documents(name, value, updated_at) VALUES($1,$2,NOW()) ON CONFLICT(name) DO UPDATE SET value=EXCLUDED.value, updated_at=NOW()", [name, JSON.stringify(value)]);
+  }
   catch (error) { console.error(`Could not persist ${name}`, error); }
 }
 
 async function initDatabase() {
-  if (!process.env.DATABASE_URL) return;
-  dbPool = new pg.Pool({ connectionString: process.env.DATABASE_URL, ssl: process.env.DATABASE_URL.includes("localhost") ? false : { rejectUnauthorized: false } });
-  await dbPool.query("CREATE TABLE IF NOT EXISTS store_documents(name TEXT PRIMARY KEY, value JSONB NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW())");
-  await dbPool.query("CREATE TABLE IF NOT EXISTS media_assets(id TEXT PRIMARY KEY, mime_type TEXT NOT NULL, data BYTEA NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())");
+  if (process.env.MYSQL_HOST && process.env.MYSQL_DATABASE && process.env.MYSQL_USER) {
+    databaseDriver = "mysql";
+    dbPool = mysql.createPool({ host: process.env.MYSQL_HOST, port: Number(process.env.MYSQL_PORT || 3306), database: process.env.MYSQL_DATABASE, user: process.env.MYSQL_USER, password: process.env.MYSQL_PASSWORD, waitForConnections: true, connectionLimit: 5 });
+    await dbPool.execute("CREATE TABLE IF NOT EXISTS store_documents(name VARCHAR(64) PRIMARY KEY, value JSON NOT NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)");
+    await dbPool.execute("CREATE TABLE IF NOT EXISTS media_assets(id VARCHAR(255) PRIMARY KEY, mime_type VARCHAR(128) NOT NULL, data LONGBLOB NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+  } else if (process.env.DATABASE_URL) {
+    databaseDriver = "postgresql";
+    dbPool = new pg.Pool({ connectionString: process.env.DATABASE_URL, ssl: process.env.DATABASE_URL.includes("localhost") ? false : { rejectUnauthorized: false } });
+    await dbPool.query("CREATE TABLE IF NOT EXISTS store_documents(name TEXT PRIMARY KEY, value JSONB NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW())");
+    await dbPool.query("CREATE TABLE IF NOT EXISTS media_assets(id TEXT PRIMARY KEY, mime_type TEXT NOT NULL, data BYTEA NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())");
+  } else return;
   for (const [name, file, fallback] of [["products", dataFile, seedProducts], ["sliders", slidersFile, []], ["orders", ordersFile, []]]) {
-    const result = await dbPool.query("SELECT value FROM store_documents WHERE name=$1", [name]);
-    if (result.rows.length) fs.writeFileSync(file, JSON.stringify(result.rows[0].value, null, 2));
+    const result = databaseDriver === "mysql" ? await dbPool.execute("SELECT value FROM store_documents WHERE name=?", [name]) : await dbPool.query("SELECT value FROM store_documents WHERE name=$1", [name]);
+    const rows = databaseDriver === "mysql" ? result[0] : result.rows;
+    if (rows.length) fs.writeFileSync(file, JSON.stringify(typeof rows[0].value === "string" ? JSON.parse(rows[0].value) : rows[0].value, null, 2));
     else await persistDocument(name, fallback);
   }
-  console.info("Persistent PostgreSQL storage connected.");
+  console.info(`Persistent ${databaseDriver} storage connected.`);
 }
 
 async function prepareUploadedFiles(req) {
   const files = req.files || (req.file ? [req.file] : []);
   for (const file of files) {
     file.filename = `${Date.now()}-${crypto.randomBytes(5).toString("hex")}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, "-")}`;
-    if (dbPool) await dbPool.query("INSERT INTO media_assets(id,mime_type,data) VALUES($1,$2,$3)", [file.filename, file.mimetype, file.buffer]);
+    if (dbPool && databaseDriver === "mysql") await dbPool.execute("INSERT INTO media_assets(id,mime_type,data) VALUES(?,?,?)", [file.filename, file.mimetype, file.buffer]);
+    else if (dbPool) await dbPool.query("INSERT INTO media_assets(id,mime_type,data) VALUES($1,$2,$3)", [file.filename, file.mimetype, file.buffer]);
     else fs.writeFileSync(path.join(uploadsDir, file.filename), file.buffer);
   }
 }
@@ -130,7 +144,11 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.get("/uploads/:id", async (req, res) => {
-  if (dbPool) { const result = await dbPool.query("SELECT mime_type,data FROM media_assets WHERE id=$1", [req.params.id]); if (result.rows.length) { res.setHeader("Content-Type", result.rows[0].mime_type); res.setHeader("Cache-Control", "public, max-age=31536000, immutable"); return res.send(result.rows[0].data); } }
+  if (dbPool) {
+    const result = databaseDriver === "mysql" ? await dbPool.execute("SELECT mime_type,data FROM media_assets WHERE id=?", [req.params.id]) : await dbPool.query("SELECT mime_type,data FROM media_assets WHERE id=$1", [req.params.id]);
+    const rows = databaseDriver === "mysql" ? result[0] : result.rows;
+    if (rows.length) { res.setHeader("Content-Type", rows[0].mime_type); res.setHeader("Cache-Control", "public, max-age=31536000, immutable"); return res.send(rows[0].data); }
+  }
   const localFile = path.join(uploadsDir, path.basename(req.params.id));
   if (fs.existsSync(localFile)) return res.sendFile(localFile);
   res.status(404).end();
@@ -233,7 +251,7 @@ function validateProduct(product, products, currentId) {
 }
 
 app.get("/", (_req, res) => res.send("RamanStore API is running."));
-app.get("/health", (_req, res) => res.json({ ok: true, storage: dbPool ? "postgresql" : "filesystem" }));
+app.get("/health", (_req, res) => res.json({ ok: true, storage: databaseDriver || "filesystem" }));
 
 app.get(["/products", "/shop"], (req, res) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
