@@ -7,8 +7,7 @@ import AddProduct from "./pages/AddProduct";
 import EditProduct from "./pages/editProduct";
 import Login from "./pages/Login";
 import Sliders from "./pages/Sliders";
-
-const API_BASE = (import.meta.env.VITE_API_BASE || "http://localhost:4000").replace(/\/$/, "");
+import { API_BASE } from "./lib/apiBase";
 
 export default function App() {
   const [auth, setAuth] = useState<"loading" | "yes" | "no">("loading");

@@ -83,8 +83,8 @@ function readCookies(req) {
 }
 
 function sessionCookie(token, maxAge = SESSION_TTL_MS) {
-  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
-  return `raman_admin_session=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${Math.floor(maxAge / 1000)}${secure}`;
+  const production = process.env.NODE_ENV === "production";
+  return `raman_admin_session=${encodeURIComponent(token)}; HttpOnly; SameSite=${production ? "None" : "Lax"}; Path=/; Max-Age=${Math.floor(maxAge / 1000)}${production ? "; Secure" : ""}`;
 }
 
 function getSession(req) {

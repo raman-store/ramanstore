@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_BASE } from "../lib/apiBase";
 
-const API_BASE = (import.meta.env.VITE_API_BASE || "http://localhost:4000").replace(/\/$/, "");
 const categories = [
   { value: "female-wear", label: "Women’s wear" },
   { value: "kids-wear", label: "Kids’ wear" },

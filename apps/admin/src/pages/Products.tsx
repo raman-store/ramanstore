@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { API_BASE } from "../lib/apiBase";
 
 type Product = {
   id: number | string;
@@ -12,15 +13,7 @@ type Product = {
 
 const CATEGORIES = ["female-wear", "kids-wear", "artificial-jewellery"] as const;
 
-function getApiBase() {
-  const viteBase = (import.meta as any)?.env?.VITE_API_BASE as string | undefined;
-  const nextBase = (import.meta as any)?.env?.NEXT_PUBLIC_API_BASE as string | undefined;
-  return (viteBase || nextBase || "http://localhost:4000").replace(/\/$/, "");
-}
-
 export default function Products() {
-  const API_BASE = useMemo(() => getApiBase(), []);
-
   const [items, setItems] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");

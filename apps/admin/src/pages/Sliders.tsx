@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { API_BASE } from "../lib/apiBase";
 
-const API_BASE = (import.meta.env.VITE_API_BASE || "http://localhost:4000").replace(/\/$/, "");
 type Slide = { id: string; label: string; title: string; note: string; buttonText: string; href: string; media: { type: "image" | "video"; url: string }; isActive: boolean };
 const initialForm = { label: "Featured collection", title: "", note: "", buttonText: "Shop collection", href: "/shop", isActive: true };
 

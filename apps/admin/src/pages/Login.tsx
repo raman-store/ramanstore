@@ -1,6 +1,6 @@
 import { useState } from "react";
+import { API_BASE } from "../lib/apiBase";
 
-const API_BASE = (import.meta.env.VITE_API_BASE || "http://localhost:4000").replace(/\/$/, "");
 const ADMIN_EMAIL = "info@ramanstore.com";
 
 export default function Login({ onLogin }: { onLogin: () => void }) {

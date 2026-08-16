@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE;
+import { API_BASE } from "./apiBase";
 
 export async function apiGet(path: string) {
   const res = await fetch(`${API_BASE}${path}`);
