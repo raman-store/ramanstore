@@ -21,10 +21,9 @@ const ordersFile = path.join(dataDir, "orders.json");
 const uploadsDir = path.join(storageDir, "uploads");
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "info@ramanstore.com").trim().toLowerCase();
 const OTP_TTL_MS = 10 * 60 * 1000;
-const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const OTP_RESEND_MS = 60 * 1000;
 const otpChallenges = new Map();
-const sessions = new Map();
 let dbPool = null;
 let databaseDriver = null;
 
@@ -167,15 +166,31 @@ function sessionCookie(token, maxAge = SESSION_TTL_MS) {
   return `raman_admin_session=${encodeURIComponent(token)}; HttpOnly; SameSite=${production ? "None" : "Lax"}; Path=/; Max-Age=${Math.floor(maxAge / 1000)}${production ? "; Secure" : ""}`;
 }
 
+function sessionSecret() {
+  return process.env.SESSION_SECRET || process.env.SMTP_PASS || process.env.RAZORPAY_KEY_SECRET || `raman-store:${ADMIN_EMAIL}`;
+}
+
+function createSessionToken(email) {
+  const payload = Buffer.from(JSON.stringify({ email, expiresAt: Date.now() + SESSION_TTL_MS })).toString("base64url");
+  const signature = crypto.createHmac("sha256", sessionSecret()).update(payload).digest("base64url");
+  return `${payload}.${signature}`;
+}
+
 function getSession(req) {
   const token = readCookies(req).raman_admin_session;
   if (!token) return null;
-  const session = sessions.get(hash(token));
-  if (!session || session.expiresAt <= Date.now()) {
-    if (session) sessions.delete(hash(token));
+  const [payload, suppliedSignature] = token.split(".");
+  if (!payload || !suppliedSignature) return null;
+  const expectedSignature = crypto.createHmac("sha256", sessionSecret()).update(payload).digest("base64url");
+  const supplied = Buffer.from(suppliedSignature);
+  const expected = Buffer.from(expectedSignature);
+  if (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) return null;
+  try {
+    const session = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    return session.email === ADMIN_EMAIL && session.expiresAt > Date.now() ? session : null;
+  } catch {
     return null;
   }
-  return session;
 }
 
 function requireAdmin(req, res, next) {
@@ -370,8 +385,7 @@ app.post("/admin/auth/verify-otp", (req, res) => {
     return res.status(400).json({ message: "Incorrect OTP." });
   }
   otpChallenges.delete(key);
-  const token = crypto.randomBytes(32).toString("base64url");
-  sessions.set(hash(token), { email, expiresAt: Date.now() + SESSION_TTL_MS });
+  const token = createSessionToken(email);
   res.setHeader("Set-Cookie", sessionCookie(token));
   res.json({ ok: true, email });
 });
@@ -383,8 +397,6 @@ app.get("/admin/auth/session", (req, res) => {
 });
 
 app.post("/admin/auth/logout", (req, res) => {
-  const token = readCookies(req).raman_admin_session;
-  if (token) sessions.delete(hash(token));
   res.setHeader("Set-Cookie", sessionCookie("", 0));
   res.json({ ok: true });
 });
